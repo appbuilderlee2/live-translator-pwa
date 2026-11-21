@@ -193,13 +193,13 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
   }
   function previewCurrent() { preview(current.text.slice(current.committedCharacters).trim()) }
   rec.onstart = () => { clearTimeout(retryTimer); retryTimer = undefined }
-  rec.onaudiostart = () => { failed = false; clearTimeout(retryTimer); retryTimer = undefined; if (wanted) { state('listening'); message('') } }
+  rec.onaudiostart = () => { failed = false; clearTimeout(retryTimer); retryTimer = undefined; if (wanted && !current.terminal) { state('listening'); message('') } }
   rec.onresult = event => {
     message('')
     const incoming = Array.from(event.results, (result, index) => ({ index, text: result[0].transcript.trim(), final: result.isFinal, confidence: result[0].confidence, alternatives: Array.from(result, a => a.transcript) })).filter(r => r.text)
     if (!incoming.length) return
     failed = false; failures = 0; clearTimeout(retryTimer); retryTimer = undefined
-    if (wanted) state('listening')
+    if (wanted && !current.terminal) state('listening')
     const candidate = normalized(incoming.map(r => r.text).join(' ')); const old = normalized(closing?.text || '')
     const overlap = candidate.slice(0, 10).filter(word => old.slice(0, 10).includes(word)).length
     const matchesClosing = closing?.awaitingFinal && incoming[0].final && ((!closing.flushed && !current.text) || overlap >= Math.min(candidate.length, old.length, 10) * .6)
@@ -271,7 +271,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
       if (numericValues(slice(ended.text, words(ended.text), start, end)).length) { risk(ended, start, end, 'boundary'); reconcile(ended, ended.text, ended.finals) }
     }
     if (closing && closing !== ended) flush(closing)
-    closing = ended
+    closing = ended.terminal && wanted ? undefined : ended
     endedSessions.add(ended)
     ended.timer = later(() => flush(ended))
     current = session(); current.afterRestart = ended.awaitingFinal; preview('')
@@ -289,7 +289,17 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
     retryTimer = setTimeout(() => { retryTimer = undefined; if (wanted) startRecognition() }, Math.min(500 * 2 ** failures++, 5000))
   }
   return {
-    start() { wanted = true; failed = false; failures = 0; immediateRetry = false; clearTimeout(retryTimer); retryTimer = undefined; message(''); startRecognition() },
+    start() {
+      const fresh = !wanted && current.terminal
+      wanted = true; failed = false; failures = 0; immediateRetry = false; clearTimeout(retryTimer); retryTimer = undefined; message('')
+      if (fresh) {
+        clearTimeout(pause); preview('')
+        if (running) { state('requesting'); return }
+        endedSessions.add(current)
+        current = session(); closing = undefined
+      }
+      startRecognition()
+    },
     stop() {
       wanted = false; clearTimeout(pause); clearTimeout(retryTimer); retryTimer = undefined; state('idle')
       endListening()
