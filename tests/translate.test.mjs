@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { translateHandler } from '../shared/translate.mjs'
+import { translateHandler } from './handler-fixture.mjs'
 const request = (text, context) => new Request('http://localhost/api/translate', { method: 'POST', body: JSON.stringify({ text, context }) })
 test('rejects empty, malformed and oversized input', async () => {
   for (const value of ['', ' ', null, 42, 'a'.repeat(2001)]) assert.equal((await translateHandler(request(value))).status, 400)
@@ -9,13 +9,13 @@ test('rejects empty, malformed and oversized input', async () => {
   assert.equal((await translateHandler(request('Hello', [{ en: 42 }]))).status, 400)
   assert.equal((await translateHandler(request('Hello', Array(3).fill({ en: 'x', zh: '' })))).status, 400)
 })
-test('Google joins translated chunks and returns 502 for errors', async () => {
+test('Google joins translated chunks and preserves typed provider failures without internal retries', async () => {
   const original = globalThis.fetch; const key = process.env.OPENAI_API_KEY; delete process.env.OPENAI_API_KEY
   try {
     globalThis.fetch = async () => Response.json([[['你好', 'Hello'], ['，世界', 'world']]])
     assert.equal(await (await translateHandler(request('Hello world'))).text(), '你好，世界')
     globalThis.fetch = async () => new Response('Unavailable', { status: 503 })
-    assert.equal((await translateHandler(request('Hello'))).status, 502)
+    assert.equal((await translateHandler(request('Hello'))).status, 503)
     let attempts = 0
     globalThis.fetch = async url => {
       attempts++
@@ -23,6 +23,7 @@ test('Google joins translated chunks and returns 502 for errors', async () => {
       assert.match(new URL(url).searchParams.get('q'), /procurement approves/)
       return Response.json([[['博物馆周日开放吗', 'Museum']]])
     }
+    assert.equal((await translateHandler(request('procurement signs off'))).status, 429)
     assert.equal(await (await translateHandler(request('procurement signs off'))).text(), '博物館週日開放嗎')
     assert.equal(attempts, 2)
     globalThis.fetch = async url => {
@@ -32,7 +33,7 @@ test('Google joins translated chunks and returns 502 for errors', async () => {
     }
     assert.equal(await (await translateHandler(request('Maya Chen will send the board deck.'))).text(), 'Maya Chen 將寄出簡報。')
     globalThis.fetch = async () => { throw new Error('network') }
-    assert.equal((await translateHandler(request('Hello'))).status, 502)
+    assert.equal((await translateHandler(request('Hello'))).status, 503)
   } finally { globalThis.fetch = original; if (key === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = key }
 })
 test('OpenAI SSE handles split chunks and streams only text', async () => {

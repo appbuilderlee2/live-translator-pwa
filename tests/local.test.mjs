@@ -2,11 +2,37 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { coverageMismatch, localChunks, localTranslation, translateWithFallback } from '../src/local.mjs'
+import { negationMismatch } from '../shared/negation.mjs'
 
 const recognized = 'tomorrow morning hour train leave at 9:15 we need four bottles of water and two sandwiches for the journey please help us find platform 6 thank you for speaking slowly and explaining the directions so clearly'
 const truncated = '明天早上 9:15 火車出發 我們需要四瓶水和兩個三明治'
 const full = '明天早上 9 點 15 分火車出發，我們需要四瓶水和兩個三明治，請幫我們找到 6 號月臺，謝謝您說得很慢，並且解釋得這麼清楚'
 const signal = () => new AbortController().signal
+
+test('hurry negation retains its scope and unrelated route hallucinations fall back with the full caption', async () => {
+  const short = 'we are not in a hurry'
+  const hallucinated = '我們不是最安全的步行路線'
+  const paragraph = 'after lunch we plan to visit the library and the park could you show us the safest walking route on the map we are not in a hurry we would rather walk slowly and enjoy the street'
+  assert.equal(negationMismatch(short, hallucinated), true)
+  assert.equal(negationMismatch(short, '我們不趕時間'), false)
+  assert.equal(coverageMismatch(short, hallucinated), true)
+  assert.ok(localChunks(paragraph).includes(short))
+  assert.equal(localChunks(paragraph).join(' '), paragraph)
+  const calls = []
+  for (const source of [short, paragraph]) {
+    const fallback = async (text, _signal, update) => { calls.push(text); update('我們不趕時間'); return '我們不趕時間' }
+    const result = await translateWithFallback({ translate: async () => hallucinated }, source, signal(), () => {}, [], {}, fallback)
+    assert.equal(result, '我們不趕時間')
+  }
+  assert.deepEqual(calls, [short, paragraph])
+})
+
+test('concurrent captions use the shared local translator serially without cross-caption input', async () => {
+  const calls = []; let active = 0; let maximum = 0
+  const local = { async translate(text) { calls.push(text); maximum = Math.max(maximum, ++active); await Promise.resolve(); active--; return text === 'Hello' ? '你好' : '謝謝' } }
+  assert.deepEqual(await Promise.all([localTranslation(local, 'Hello', signal()), localTranslation(local, 'Thank you', signal())]), ['你好', '謝謝'])
+  assert.deepEqual(calls, ['Hello', 'Thank you']); assert.equal(maximum, 1)
+})
 
 test('Taipei destination and trailing figures must survive local output; accepted output gets Taiwan normalization', async () => {
   const source = 'Please take a taxi to the Taipei subway station.'

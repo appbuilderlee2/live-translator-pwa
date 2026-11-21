@@ -22,7 +22,7 @@ http.createServer(async (req, res) => {
     let file = resolve(root, '.' + decodeURIComponent(url.pathname))
     if (!file.startsWith(root + '/') && file !== root) { res.writeHead(403); res.end(); return }
     try { if (!(await stat(file)).isFile()) file = resolve(root, 'index.html') } catch { file = resolve(root, 'index.html') }
-    res.writeHead(200, { 'Content-Type': types[extname(file)] || 'application/octet-stream', 'Cache-Control': extname(file) === '.html' || file.endsWith('sw.js') ? 'no-cache' : 'public, max-age=3600' })
+    res.writeHead(200, { 'Content-Type': types[extname(file)] || 'application/octet-stream', 'Cache-Control': extname(file) === '.html' ? 'no-store' : file.endsWith('sw.js') || file.endsWith('registerSW.js') ? 'no-cache' : 'public, max-age=3600' })
     res.end(req.method === 'HEAD' ? undefined : await readFile(file))
   } catch { if (!res.headersSent) res.writeHead(500); res.end('Server error') }
 }).listen(Number(process.env.PORT || 3000), '0.0.0.0', () => console.log(`Live Translator listening on http://localhost:${process.env.PORT || 3000}`))

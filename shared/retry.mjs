@@ -1,8 +1,8 @@
-export function retryAfter(value, now = Date.now()) {
+export function retryAfter(value, now = Date.now(), cap = 3000) {
   if (value === null || value === undefined || !String(value).trim()) return undefined
   const seconds = Number(value)
   const milliseconds = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(value) - now
-  return Number.isFinite(milliseconds) ? Math.min(3000, Math.max(0, milliseconds)) : undefined
+  return Number.isFinite(milliseconds) ? Math.min(cap, Math.max(0, milliseconds)) : undefined
 }
 
 export async function retry(operation, { signal, attempts = 3, delay = 180 } = {}) {

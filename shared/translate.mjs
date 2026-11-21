@@ -1,26 +1,14 @@
 import { meetingPrompt, normalizeBusiness, protectNames, protectCurrency, currencySource } from './business.mjs'
 import { traditional, translationBuffer } from './traditional.mjs'
-import { createLimiter, createRateLimiter, retry, retryAfter, withTimeout } from './retry.mjs'
+import { withTimeout } from './retry.mjs'
+import { createProviderGateway, providerResponse } from './provider.mjs'
 import { negationMismatch, normalizeNegations } from './negation.mjs'
 import { medicalPrompt, normalizeMedical, protectMedical, medicalTranslation, medicalWarnings } from './medical.mjs'
 
-const limited = createLimiter(2)
-const previewLimited = createLimiter(1)
-const paced = createRateLimiter(150)
 const headers = { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }
-async function upstream(url, options) {
-  const response = await paced(() => fetch(url, options), { signal: options.signal, priority: options.preview ? -1 : 0 })
-  if (!response.ok) {
-    await response.body?.cancel()
-    const error = new Error('Translation provider unavailable')
-    error.retryable = response.status === 408 || response.status === 429 || response.status >= 500
-    error.status = response.status
-    error.retryAfter = retryAfter(response.headers.get('Retry-After'))
-    throw error
-  }
-  return response
-}
-export async function translateHandler(req) {
+export function createTranslateHandler(options = {}) {
+const gateway = createProviderGateway(options)
+return async function translateHandler(req) {
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405, headers: { Allow: 'POST' } })
   let text; let context; let spoken; let preview
   try {
@@ -33,20 +21,20 @@ export async function translateHandler(req) {
     if (body.context !== undefined && (!Array.isArray(body.context) || body.context.length > 2 || body.context.some(s => !s || typeof s.en !== 'string' || typeof s.zh !== 'string' || s.en.length > 2000 || s.zh.length > 8000))) throw new Error()
     context = body.context || []
   } catch { return new Response('Provide text between 1 and 2000 characters and at most two context segments.', { status: 400 }) }
+  if (preview) return Response.json({ error: 'previews_disabled' }, { status: 409, headers: { 'Cache-Control': 'no-store' } })
   const env = typeof process !== 'undefined' ? process.env : {}
   const source = currencySource(text, spoken)
   const currency = protectCurrency(normalizeNegations(normalizeBusiness(source, context)))
-  const attempt = operation => retry(() => withTimeout(signal => {
-    const run = () => limited(() => withTimeout(operation, { signal, timeout: 3000 }), { signal, priority: preview ? -1 : 0 })
-    return preview ? previewLimited(run, { signal }) : run()
-  }, { signal: req.signal, timeout: preview ? 1200 : 3000 }), { signal: req.signal, attempts: preview ? 1 : 2, delay: 180 })
+  const attempt = operation => withTimeout(operation, { signal: req.signal, timeout: 6000 })
+  let endpoint = ''; const started = Date.now()
+  const upstream = (url, options) => { endpoint = url; return gateway.fetch(url, options) }
   try {
+    gateway.check()
     if (!env.OPENAI_API_KEY) {
       const medical = protectMedical(currency.text, context)
       const protectedText = protectNames(medical.text)
-      let endpoint = 0
       const result = await attempt(async signal => {
-        const target = new URL([env.GOOGLE_TRANSLATE_URL || 'https://translate.googleapis.com/translate_a/single', env.GOOGLE_TRANSLATE_FALLBACK_URL || 'https://translate.google.com/translate_a/single'][endpoint++ % 2])
+        const target = new URL(gateway.endpoint([env.GOOGLE_TRANSLATE_URL || 'https://translate.googleapis.com/translate_a/single', env.GOOGLE_TRANSLATE_FALLBACK_URL || 'https://translate.google.com/translate_a/single']))
         for (const [key, value] of Object.entries({ client: 'gtx', sl: 'en', tl: 'zh-TW', dt: 't', q: protectedText.text })) target.searchParams.set(key, value)
         const response = await upstream(target.toString(), { signal, preview })
         const data = await response.json()
@@ -94,10 +82,13 @@ export async function translateHandler(req) {
           if (negationMismatch(text, translated)) throw new Error('Translation lost a negation')
           if (medicalWarnings(text, translated, context).length) throw new Error('Translation changed medical meaning')
           controller.close()
-        } catch (error) { void reader.cancel(error).catch(() => {}); controller.error(error) } finally { reader.releaseLock() }
+        } catch (error) { if (typeof error.code !== 'string') gateway.invalid(error, endpoint, started); void reader.cancel(error).catch(() => {}); controller.error(error) } finally { reader.releaseLock() }
       },
       cancel() { return reader.cancel() }
     })
     return new Response(stream, { headers })
-  } catch (error) { return new Response('Translation unavailable. Please try again.', { status: error.status === 429 ? 429 : 502, headers: error.status === 429 ? { 'Retry-After': String(Math.ceil((error.retryAfter ?? 1000) / 1000)) } : {} }) }
+  } catch (error) { return providerResponse(typeof error.code !== 'string' && endpoint ? gateway.invalid(error, endpoint, started) : error) }
 }
+}
+
+export const translateHandler = createTranslateHandler()

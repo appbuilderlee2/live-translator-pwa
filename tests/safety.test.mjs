@@ -136,7 +136,7 @@ test('voice errors are visible; async voices and speed/selection are respected',
   voices = []; const missing = speakTranslation('你好', synth, class {}, m => messages.push(m)); t.mock.timers.tick(900); await missing
   assert.match(messages.at(-1), /未安裝/); assert.match(messages.at(-1), /settings/)
 })
-test('client retries an interrupted stream independently of newer committed segments', async () => {
+test('client exposes interrupted streams for queued recovery without an independent retry loop', async () => {
   const original = globalThis.fetch; let attempts = 0; const signals = []
   try {
     globalThis.fetch = async (_url, options) => {
@@ -145,6 +145,8 @@ test('client retries an interrupted stream independently of newer committed segm
       return new Response('博物馆周日开放吗')
     }
     const first = new AbortController(); const second = new AbortController()
+    await assert.rejects(networkTranslation('First', first.signal, () => {}), /interrupted/)
+    assert.equal(attempts, 1)
     const result = await Promise.all([networkTranslation('First', first.signal, () => {}), networkTranslation('Second', second.signal, () => {})])
     assert.deepEqual(result, ['博物館週日開放嗎', '博物館週日開放嗎']); assert.equal(attempts, 3); assert.ok(signals.every(s => !s.aborted))
     globalThis.fetch = async () => new Response('bad request', { status: 400 })

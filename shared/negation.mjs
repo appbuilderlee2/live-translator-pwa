@@ -5,6 +5,7 @@ const englishNegation = /\b(?:not|never|no|without|neither|nor|cannot|\w+n['’]
 export function negationMismatch(en, zh) {
   const negatives = [...en.matchAll(englishNegation)]
   if (!negatives.length) return false
+  if (/\b(?:not\s+in\s+(?:a\s+)?hurry|no\s+hurry|not\s+rushing)\b/i.test(en) && !/(?:不|沒|没|無|无|毋須|不用).{0,3}(?:趕|赶|急|匆忙)/.test(zh)) return true
   if (negatives.length > [...zh.matchAll(/[不沒没未非別别無无勿莫]/g)].length) return true
   const exclusions = [...zh.matchAll(/(?:不是|並非|而非|非|不等於|不為|不含|不包括|不(?=\s*[\d零〇一二三四五六七八九兩两十百千萬億]))([^，。,;；!?]*)/g)]
   return negatives.some(match => {

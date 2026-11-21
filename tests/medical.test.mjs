@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { medicalWarnings, normalizeMedical, medicalTranslation, protectMedical } from '../shared/medical.mjs'
 import { currencySource, protectCurrency, normalizeBusiness } from '../shared/business.mjs'
 import { traditional, translationBuffer } from '../shared/traditional.mjs'
-import { translateHandler } from '../shared/translate.mjs'
+import { translateHandler } from './handler-fixture.mjs'
 
 const context = [{ en: 'Please remind me to take my blood pressure medicine at 8:00.', zh: '' }]
 const tablets = 'I keep my tablets in the small blue box beside the kitchen window'
@@ -59,7 +59,7 @@ test('Google and OpenAI protect the report medical meanings and unchanged dosage
       assert.match(output, expectedOutput); assert.deepEqual(medicalWarnings(en, output, context), [])
     }
     globalThis.fetch = async () => provider === 'Google' ? Response.json([[['']]]) : sse('')
-    const response = await translateHandler(request(tablets, { context, preview: true }))
+    const response = await translateHandler(request(tablets, { context }))
     if (provider === 'Google') assert.equal(response.status, 502); else await assert.rejects(response.text(), /Empty translation/)
   }
 })
