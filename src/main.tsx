@@ -12,6 +12,7 @@ import { createTranscriptFollower, jumpLabel } from './follow.mjs'
 import { unresolvedTranslations } from './recovery.mjs'
 import { createTranslationQueue } from './translation-queue.mjs'
 import { formatTranscript, waitForTranslations } from './export.mjs'
+import { startServiceWorker } from './pwa.mjs'
 import '@fontsource/noto-sans-tc/400.css'
 import './style.css'
 import './accessibility.css'
@@ -266,3 +267,4 @@ function App() {
   </div>)
 }
 createRoot(document.getElementById('root')!).render(<App />)
+if (import.meta.env.PROD && import.meta.env.VITE_DISABLE_SW !== '1') startServiceWorker()
