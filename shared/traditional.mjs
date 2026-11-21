@@ -16,6 +16,7 @@ export function traditional(text, source = '') {
   result = result.replace(/([顆種])\s+(?=藥錠|藥片|藥丸|膠囊)/g, '$1')
   if (/\bcommunity\s+cent(?:er|re)\b/i.test(source) && !/\b(?:online|virtual|digital)\b/i.test(source)) result = result.replace(/社[群區]中心/g, '社區活動中心')
   if (/\bcommunity\b/i.test(source) && /\bwalking\s+(?:activit(?:y|ies)|events?)\b/i.test(source)) result = result.replace(/(?:步行|徒步)活動/g, '健走活動')
+  if (/\bit is a reason to (?:ask|pose|formulate) a better question\b/i.test(source)) result = result.replace(/而是((?:提出|問出)更好(?:的)?問題)的理由/g, '而是$1的契機')
   const platforms = new Set([...source.matchAll(/\bplatform\s+(?:number\s+)?/gi)].flatMap(match => {
     const sentence = source.slice(0, match.index).split(/[.!?;]/).at(-1) + source.slice(match.index).split(/[.!?;]/)[0]
     if (/\b(?:software|cloud|digital|online|computing|social|gaming|version|release|API|launch|rocket|oil|drilling|stage|concert|political)\b/i.test(sentence)) return []

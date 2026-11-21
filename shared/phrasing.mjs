@@ -33,7 +33,7 @@ export function readableChinese(source = '', text = '', complete = true) {
     }
   }
   const lectureBoundaries = [
-    [/\bresult is not a failure\b/i, /([\p{Script=Han}\d])\s*(?=令人驚訝的結果不是失敗)/gu],
+    [/\bresult is not a failure\b|\b(?:a|the)\s+(?:[a-z-]+\s+){0,3}result is\b/i, /([\p{Script=Han}\d])(?:\s+(?=(?:[\p{Script=Han}]{1,12}的)?結果(?:並)?(?:不是|是))|\s*(?=令人(?:驚訝|意外)的結果(?:並)?(?:不是|是)))/gu],
     [/\bthis is the end of\b/i, /([\p{Script=Han}\d])\s*(?=這是[^。！？；，]{0,24}(?:結束|結尾))/gu],
     [/\btoday we are discussing\b/i, /([\p{Script=Han}\d])(?<!今天)\s*(?=(?:今天)?我們(?:今天)?(?:正在)?討論)/gu],
     [/\ba scientific experiment begins\b/i, /([\p{Script=Han}\d])\s*(?=科學實驗從)/gu],
