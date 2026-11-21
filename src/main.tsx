@@ -1,19 +1,20 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { traditional } from '../shared/traditional.mjs'
 import { negationMismatch } from '../shared/negation.mjs'
+import { medicalWarnings } from '../shared/medical.mjs'
+import { translateWithFallback } from './local.mjs'
 import { networkTranslation } from './network.mjs'
 import { numericMismatch, splitText, recoverSegment, retryableSegments, previousContext } from './transcript.mjs'
 import { createSpeechController } from './speech.mjs'
 import { speakTranslation } from './voice.mjs'
 import { createTranscriptFollower } from './follow.mjs'
-import { createTranslationRecovery } from './recovery.mjs'
+import { createTranslationRecovery, unresolvedTranslations } from './recovery.mjs'
 import '@fontsource/noto-sans-tc/400.css'
 import './style.css'
 import './accessibility.css'
 
-type Segment = { id: string; en: string; zh: string; timestamp: number; confidence?: number; forced?: boolean; provisional?: boolean; numericWarnings?: string[]; status: 'pending' | 'translating' | 'done' | 'error' }
-type SpeechMetadata = Pick<Segment, 'confidence' | 'forced' | 'provisional' | 'numericWarnings'>
+type Segment = { id: string; en: string; zh: string; timestamp: number; confidence?: number; forced?: boolean; provisional?: boolean; spoken?: boolean; numericWarnings?: string[]; status: 'pending' | 'translating' | 'done' | 'error' }
+type SpeechMetadata = Pick<Segment, 'confidence' | 'forced' | 'provisional' | 'spoken' | 'numericWarnings'>
 type Session = { id: string; timestamp: number; segments: Segment[] }
 type Recognition = { start(): void; stop(): void }
 type Translator = { translate(text: string): Promise<string> }
@@ -28,11 +29,12 @@ function languageText(node: React.ReactNode): React.ReactNode {
   if (node.type === 'option') return React.cloneElement(node, { lang: 'zh-Hant-TW' })
   return node.props.children === undefined ? node : React.cloneElement(node, {}, languageText(node.props.children))
 }
-function warnings(segment: Segment) {
+function warnings(segment: Segment, context: { en: string; zh: string }[] = []) {
   const labels: Record<string, string> = { alternatives: '數字候選不一致 / numeric alternatives disagree', interim: '辨識數字曾變動或遺漏 / recognized figures changed or disappeared', boundary: '數字跨越收音中斷 / figures cross a recognition boundary' }
   const result = (segment.numericWarnings || []).map(reason => labels[reason]).filter(Boolean)
   if (segment.status === 'done' && numericMismatch(segment.en, segment.zh)) result.push('數字可能不符 / figures may not match')
   if (segment.zh && segment.status !== 'translating' && negationMismatch(segment.en, segment.zh)) result.push('否定詞可能遺漏或範圍不符 / negation may be missing or misplaced')
+  if (segment.zh && segment.status !== 'translating') result.push(...medicalWarnings(segment.en, segment.zh, context))
   if (!segment.provisional && !segment.forced && segment.confidence !== undefined && segment.confidence < .8) result.push('辨識信心較低 / low speech confidence')
   return result
 }
@@ -48,20 +50,12 @@ function device() {
   })()
   return devicePromise
 }
-async function translate(text: string, signal: AbortSignal, update: (text: string) => void, context: { en: string; zh: string }[] = []) {
+async function translate(text: string, signal: AbortSignal, update: (text: string) => void, context: { en: string; zh: string }[] = [], options: { spoken?: boolean; preview?: boolean } = {}) {
   const local = await device()
-  if (signal.aborted) throw new DOMException('Aborted', 'AbortError')
-  if (local) {
-    try {
-      const result = await Promise.race([local.translate(text), new Promise<never>((_, reject) => setTimeout(() => reject(new Error('On-device translation timed out')), 5000))])
-      if (signal.aborted) throw new DOMException('Aborted', 'AbortError')
-      const zh = traditional(result)
-      if (negationMismatch(text, zh)) throw new Error('Negation may be missing')
-      update(zh); return zh
-    } catch { if (signal.aborted) throw new DOMException('Aborted', 'AbortError') }
-  }
-  if (!navigator.onLine) throw new Error('offline')
-  return networkTranslation(text, signal, update, context)
+  return translateWithFallback(local, text, signal, update, context, options, (...args: Parameters<typeof networkTranslation>) => {
+    if (!navigator.onLine) throw new Error('offline')
+    return networkTranslation(...args)
+  })
 }
 function App() {
   const [segments, setSegments] = useState<Segment[]>(() => load<Segment[]>('lt-current', []).map(recoverSegment))
@@ -71,6 +65,7 @@ function App() {
   const [online, setOnline] = useState(navigator.onLine); const [micState, setMicState] = useState('idle'); const [input, setInput] = useState('')
   const mic = micState === 'listening'
   const [interim, setInterim] = useState(''); const [preview, setPreview] = useState(''); const [message, setMessage] = useState('')
+  const [translationErrors, setTranslationErrors] = useState<string[]>([])
   const [micMessage, setMicMessage] = useState('')
   const [autoSpeak, setAutoSpeak] = useState(() => load('lt-auto-speak', false)); const [font, setFont] = useState(() => { const value = load('lt-font', 28); return typeof value === 'number' ? Math.min(42, Math.max(20, value)) : 28 }); const [localReady, setLocalReady] = useState(false)
   const [voiceChoice, setVoiceChoice] = useState<string>(() => load('lt-voice', 'zh-TW'))
@@ -113,6 +108,7 @@ function App() {
   }, [deleted])
   useEffect(() => { try { localStorage.setItem('lt-current', JSON.stringify(segments)) } catch { setMessage('儲存空間已滿或無法使用，請下載逐字稿以保留內容。Storage is full or unavailable. Download your transcript to keep it.') } }, [segments])
   useEffect(() => { try { localStorage.setItem('lt-history', JSON.stringify(history)) } catch { setMessage('無法儲存歷史紀錄，請下載逐字稿。Could not save history. Download your transcript instead.') } }, [history])
+  useEffect(() => { setTranslationErrors(ids => { const remaining = unresolvedTranslations(ids, segments, history); return remaining.length === ids.length ? ids : remaining }) }, [segments, history])
   async function run(segment: Segment) {
     if (active.current.has(segment.id)) return
     recovery.current?.begin(segment.id)
@@ -124,8 +120,8 @@ function App() {
     }
     const context = previousContext(segment.id, segmentsRef.current, historyRef.current)
     update({ status: 'translating' })
-    try { const zh = await translate(segment.en, controller.signal, zh => update({ zh }), context); update({ zh, status: 'done' }); recovery.current?.succeeded(segment.id); setAnnouncement(`${segment.en}. ${zh}`); if (autoRef.current && segmentsRef.current.some(s => s.id === segment.id)) speakRef.current(zh) }
-    catch { if (!controller.signal.aborted) { const pending = !navigator.onLine; update({ status: pending ? 'pending' : 'error' }); recovery.current?.failed(segment.id); setAnnouncement(pending ? '英文已保留，連線後自動翻譯。English saved; translation resumes online.' : '翻譯中斷，將自動重試，也可按重新翻譯。Translation interrupted; retrying automatically. Manual Retry is also available.'); if (!pending) setMessage('翻譯中斷，英文已保留，將自動重試，也可按「重新翻譯」。Translation interrupted. English saved; retrying automatically, or tap Retry translation.') } }
+    try { const zh = await translate(segment.en, controller.signal, zh => update({ zh }), context, { spoken: segment.spoken }); update({ zh, status: 'done' }); recovery.current?.succeeded(segment.id); setAnnouncement(`${segment.en}. ${zh}`); if (autoRef.current && segmentsRef.current.some(s => s.id === segment.id)) speakRef.current(zh) }
+    catch { if (!controller.signal.aborted) { const pending = !navigator.onLine; update({ status: pending ? 'pending' : 'error' }); recovery.current?.failed(segment.id); setAnnouncement(pending ? '英文已保留，連線後自動翻譯。English saved; translation resumes online.' : '翻譯中斷，將自動重試，也可按重新翻譯。Translation interrupted; retrying automatically. Manual Retry is also available.'); if (!pending) setTranslationErrors(ids => ids.includes(segment.id) ? ids : [...ids, segment.id]) } }
     finally { active.current.delete(segment.id); const latest = [...segmentsRef.current, ...historyRef.current.flatMap(s => s.segments)].find(s => s.id === segment.id); if (latest && latest.en !== segment.en) void run(latest) }
   }
   function commit(text: string, metadata: SpeechMetadata = {}) {
@@ -159,13 +155,13 @@ function App() {
   useEffect(() => {
     if (!interim.trim()) { setPreview(''); return }
     const controller = new AbortController()
-    const timer = setTimeout(() => { void translate(interim.slice(0, 2000), controller.signal, text => { if (!controller.signal.aborted) setPreview(text) }, segmentsRef.current.slice(-2).map(({ en, zh }) => ({ en, zh }))).catch(() => {}) }, 250)
+    const timer = setTimeout(() => { void translate(interim.slice(0, 2000), controller.signal, text => { if (!controller.signal.aborted) setPreview(text) }, segmentsRef.current.slice(-2).map(({ en, zh }) => ({ en, zh })), { spoken: true, preview: true }).catch(() => {}) }, 500)
     return () => { clearTimeout(timer); controller.abort() }
   }, [interim])
   useEffect(() => {
     const Constructor = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!Constructor) return
-    const controller = createSpeechController(new Constructor(), { commit: (text: string, metadata: SpeechMetadata) => commitRef.current(text, metadata), revise: (id: string, text: string, metadata: SpeechMetadata) => reviseRef.current(id, text, metadata), preview: setInterim, state: setMicState, message: setMicMessage })
+    const controller = createSpeechController(new Constructor(), { commit: (text: string, metadata: SpeechMetadata) => commitRef.current(text, { ...metadata, spoken: true }), revise: (id: string, text: string, metadata: SpeechMetadata) => reviseRef.current(id, text, metadata), preview: setInterim, state: setMicState, message: setMicMessage })
     speech.current = controller
     return () => controller.dispose()
   }, [])
@@ -215,7 +211,7 @@ function App() {
           <div ref={transcriptContent}>
           {!shown.length && !interim && <div className="empty"><div className="wave" aria-hidden="true">{[14, 26, 40, 22, 50, 32, 18, 36, 24].map((h, i) => <i key={i} style={{ height: h }} />)}</div><h2>{micState === 'requesting' ? '等待麥克風授權 / Requesting microphone…' : mic ? '已開始收音，請說話。You’re on. Say hello.' : '從一句話，開始理解。Start a conversation.'}</h2><p>{micState === 'requesting' ? '請在瀏覽器提示中選擇「允許」。Allow microphone access in your browser.' : mic ? '英文與中文翻譯將顯示在這裡。Your words and translation appear here.' : '按麥克風並允許權限，或在下方輸入英文。\nTap the microphone and allow access, or type English below.'}</p><span className="empty-tag">英文 ENGLISH <span>→</span> 繁體中文</span></div>}
           {shown.map((s, index) => <article className="segment" key={s.id}><div className="segment-meta"><span>{String(index + 1).padStart(2, '0')}</span><time>{new Date(s.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time><span>{s.status === 'pending' ? '已保留，等待連線 / Waiting for connection' : s.status === 'translating' ? '翻譯中 / Translating…' : s.status === 'error' ? '翻譯中斷 / Interrupted' : '✓ 翻譯完成 / Translated'}</span></div>
-            <div className="quality">{!s.provisional && !s.forced && s.confidence !== undefined && <span>辨識信心 / Confidence: {Math.round(s.confidence * 100)}%</span>}{s.forced && <span>暫存語音，尚未收到最終辨識 / Saved speech; final recognition unavailable</span>}{warnings(s).length > 0 && <span className="check">⚠ 請核對 Check: {warnings(s).join('；')}</span>}</div>
+            <div className="quality">{!s.provisional && !s.forced && s.confidence !== undefined && <span>辨識信心 / Confidence: {Math.round(s.confidence * 100)}%</span>}{s.forced && <span>暫存語音，尚未收到最終辨識 / Saved speech; final recognition unavailable</span>}{warnings(s, shown.slice(Math.max(0, index - 2), index)).length > 0 && <span className="check">⚠ 請核對 Check: {warnings(s, shown.slice(Math.max(0, index - 2), index)).join('；')}</span>}</div>
             <p className="english" lang="en">{s.en}</p><button className="chinese" lang="zh-TW" aria-label={`朗讀譯文 / Read translation: ${s.zh}`} title="朗讀譯文 / Replay translation" onClick={() => speak(s.zh)} disabled={!s.zh}>{s.zh || (s.status === 'pending' ? '等待連線…' : s.status === 'error' ? '翻譯暫時無法使用' : '翻譯中…')}<span> ↗</span></button>{(s.status === 'pending' || s.status === 'error') && <button className="retry" onClick={() => void run(s)}>↻ 重新翻譯 / Retry translation</button>}</article>)}
           {interim && !selected && <article className="segment preview"><div className="segment-meta">即時預覽 / LIVE PREVIEW</div><p className="english" lang="en">{interim}</p><p className="chinese" lang="zh-TW">{preview || '…'}</p></article>}
           </div>
@@ -224,7 +220,7 @@ function App() {
         <div className="transcript-actions"><span>↗ 點譯文即可朗讀 / Tap translation to listen</span><div>{shown.length > 0 && <><button onClick={() => void navigator.clipboard.writeText(transcript).then(() => setMessage('已複製逐字稿。Transcript copied.')).catch(() => setMessage('無法複製，請改用下載。Copy unavailable. Use Download instead.'))}>複製 Copy</button><button onClick={download}>下載 Download .txt</button></>}<button onClick={() => void newSession()} disabled={!segments.length && !interim && !input}>儲存／新對話 Save / New ↗</button></div></div>
       </div>
       {!speechSupported && <p className="notice">此瀏覽器不支援語音辨識，請輸入英文，或改用 Chrome、Edge、Safari。Speech recognition isn’t available. Type English below or use Chrome, Edge or Safari.</p>}
-      <div className="notifications">{micMessage && <div className="notice" role="alert"><span>{micMessage}</span><button onClick={() => { setSelectedId(null); setHistoryOpen(false); speech.current?.start() }}>重試麥克風 / Retry mic</button></div>}{message && <div className="notice" role="status"><span>{message}</span><button onClick={() => setMessage('')} aria-label="關閉訊息 / Dismiss message">×</button></div>}
+      <div className="notifications">{micMessage && <div className="notice" role="alert"><span>{micMessage}</span><button onClick={() => { setSelectedId(null); setHistoryOpen(false); speech.current?.start() }}>重試麥克風 / Retry mic</button></div>}{translationErrors.length > 0 && <div className="notice" role="status"><span>翻譯中斷，英文已保留，將自動重試，也可按「重新翻譯」。Translation interrupted. English saved; retrying automatically, or tap Retry translation.</span><button onClick={() => setTranslationErrors([])} aria-label="關閉訊息 / Dismiss message">×</button></div>}{message && <div className="notice" role="status"><span>{message}</span><button onClick={() => setMessage('')} aria-label="關閉訊息 / Dismiss message">×</button></div>}
       {deleted && <div className="notice" role="status"><span>已刪除對話 / Session deleted. {undoSeconds > 0 ? `至少保留 ${undoSeconds} 秒，之後仍可復原 / At least ${undoSeconds}s remaining; Undo stays available` : '復原保留至關閉 / Undo available until dismissed'}</span><button onClick={undoDelete}>復原 Undo</button><button onClick={() => setDeleted(null)} aria-label="關閉復原訊息 / Dismiss Undo">×</button></div>}</div>
       <div className="sr-only" aria-live="polite" aria-atomic="true">{announcement}</div><div className="sr-only" role="status">{micState === 'retrying' ? '麥克風重新連線中 / Reconnecting microphone' : micState === 'requesting' ? '等待麥克風授權 / Requesting microphone' : mic ? '收音中 / Listening' : '麥克風已關閉 / Microphone off'}. {online ? '連線 / Online' : '離線 / Offline'}</div>
       <div className="bottom-bar"><form className="inputbox" onSubmit={e => { e.preventDefault(); commit(input); setInput(''); setSelectedId(null); setHistoryOpen(false); void device().then(t => setLocalReady(!!t)) }}><label className="sr-only" htmlFor="english">輸入英文翻譯，長文將自動分段。Type English; long text is split into segments.</label><textarea ref={composer} id="english" rows={2} value={input} onChange={e => setInput(e.target.value)} placeholder="在此輸入英文 / Type English here…" onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.currentTarget.form?.requestSubmit() } }} /><button type="submit" disabled={!input.trim()} aria-label="翻譯輸入文字 / Translate message">↑</button></form>
