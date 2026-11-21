@@ -98,7 +98,7 @@ header { height: 64px; }
   header { height: 44px; }
   .brand .logo { height: 36px; width: 36px; }
   .heading { display: none; }
-  .workspace { height: calc(100dvh - 156px); min-height: 0; }
+  .workspace { height: calc(100dvh - 60px); min-height: 0; }
   .toolbar { padding: 2px 8px; }
   .sessionbar { padding-block: 0; }
   .transcript-actions { padding-block: 2px; }
@@ -107,10 +107,13 @@ header { height: 64px; }
   .empty h2 { font-size: 16px; margin: 0; }
   .empty p { font-size: 12px; margin: 4px 0; }
   .empty .wave, .empty .empty-tag { display: none; }
-  .app { padding-bottom: 180px; }
-  .bottom-bar { position: fixed; z-index: 10; bottom: 0; left: 0; right: 0; transform: none; width: auto; max-width: none; padding: 6px 16px; background: #101715fa; border-top: 1px solid #52674f; display: grid; grid-template-columns: 1fr 220px; gap: 8px; align-items: center; }
-  .bottom-bar .controls { padding: 0; gap: 12px; }
+  .app { padding: 8px 256px 180px 12px; }
+  .bottom-bar { position: fixed; z-index: 10; top: 8px; bottom: 8px; left: auto; right: 12px; transform: none; width: 228px; max-width: none; padding: 12px; background: #101715fa; border: 1px solid #52674f; border-radius: 12px; display: flex; flex-direction: column; justify-content: center; gap: 20px; }
+  .bottom-bar .inputbox { width: 100%; }
+  .bottom-bar .controls { width: 100%; padding: 0; gap: 12px; flex-direction: column; }
   .bottom-bar .privacy, .bottom-bar .input-hint { display: none; }
   .bottom-bar .mic-group { order: 0; flex-basis: auto; margin: 0; gap: 2px; }
   .bottom-bar .mic { width: 72px; height: 72px; }
+  .segment { padding-block: 10px; }
+  .english { margin: 4px 0; }
 }

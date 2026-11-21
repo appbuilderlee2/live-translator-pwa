@@ -13,7 +13,7 @@ function harness(t) {
     revise(key, text, meta) { const index = segments.findIndex(s => s.id === key); if (!text) segments.splice(index, 1); else Object.assign(segments[index], { text, ...meta }) },
     preview() {}, state() {}, message() {}
   })
-  const emit = rows => rec.onresult({ resultIndex: 0, results: rows.map(({ text, final = false, confidence = .01 }) => Object.assign([{ transcript: text, confidence }], { isFinal: final })) })
+  const emit = (rows, resultIndex = 0) => rec.onresult({ resultIndex, results: rows.map(({ text, final = false, confidence = .01 }) => Object.assign([{ transcript: text, confidence }], { isFinal: final })) })
   controller.start(); t.after(() => controller.dispose())
   return { rec, controller, segments, emit, text: () => segments.map(s => s.text).join(' ') }
 }
@@ -129,4 +129,130 @@ test('quick traveler turns complete the existing short caption instead of splitt
   assert.deepEqual(h.segments.map(s => s.text), turns.map(([, final]) => final))
   assert.equal(h.rec.stops, 0)
   assert.equal(h.rec.starts, 1)
+})
+
+for (const published of [false, true]) test(`reused nonzero result index preserves an unrelated interim (${published ? 'published' : 'preview only'})`, t => {
+  const h = harness(t)
+  const subway = { text: 'The subway leaves at 6:30', final: true, confidence: .99 }
+  const ticket = { text: 'The ticket costs $25' }
+  const phone = { text: 'Can I pay with my mobile phone?', final: true, confidence: .98 }
+  h.emit([subway, ticket])
+  if (published) t.mock.timers.tick(1500)
+  const ticketId = h.segments.find(s => s.text === ticket.text)?.id
+  h.emit([subway, phone])
+  assert.deepEqual(h.segments.map(s => s.text), [subway.text, ticket.text, phone.text])
+  assert.equal(h.segments[1].provisional, true)
+  assert.equal(h.segments[1].forced, true)
+  assert.equal(h.segments[1].confidence, undefined)
+  assert.ok(h.segments[1].numericWarnings.includes('interim'))
+  assert.deepEqual(h.segments[2].numericWarnings, [])
+  if (published) assert.equal(h.segments[1].id, ticketId)
+  h.emit([subway, phone])
+  h.emit([subway, phone, { text: 'Thank you.', final: true, confidence: .99 }])
+  assert.deepEqual(h.segments.map(s => s.text), [subway.text, ticket.text, phone.text, 'Thank you.'])
+  assert.equal(h.rec.stops, 0)
+  assert.equal(h.rec.starts, 1)
+})
+
+test('same-index identical and extended prefixes refine a single caption in place', t => {
+  const h = harness(t)
+  h.emit([{ text: 'The ticket costs' }]); t.mock.timers.tick(1500)
+  const id = h.segments[0].id
+  h.emit([{ text: 'The ticket costs' }])
+  h.emit([{ text: 'The ticket costs $25' }]); t.mock.timers.tick(1500)
+  h.emit([{ text: 'The ticket costs $25.', final: true, confidence: .98 }])
+  assert.equal(h.text(), 'The ticket costs $25.')
+  assert.equal(h.segments.length, 1)
+  assert.equal(h.segments[0].id, id)
+  assert.equal(h.segments[0].provisional, false)
+  assert.equal(h.segments[0].forced, false)
+  assert.equal(h.rec.stops, 0)
+})
+
+test('a displaced refinement extends the published caption instead of orphaning its price', t => {
+  const h = harness(t)
+  h.emit([{ text: 'The ticket costs' }]); t.mock.timers.tick(1500)
+  const id = h.segments[0].id
+  h.emit([{ text: 'The ticket costs $25' }])
+  h.emit([{ text: 'Can I pay with my mobile phone?', final: true, confidence: .98 }])
+  assert.deepEqual(h.segments.map(s => s.text), ['The ticket costs $25', 'Can I pay with my mobile phone?'])
+  assert.equal(h.segments[0].id, id)
+  assert.ok(h.segments[0].numericWarnings.includes('interim'))
+  assert.deepEqual(h.segments[1].numericWarnings, [])
+})
+
+test('empty result batches do not erase the interim before an index is reused', t => {
+  const h = harness(t)
+  h.emit([{ text: 'The ticket costs $25' }])
+  h.emit([])
+  h.emit([{ text: '' }])
+  h.emit([{ text: 'Can I pay with my mobile phone?', final: true, confidence: .98 }])
+  assert.deepEqual(h.segments.map(s => s.text), ['The ticket costs $25', 'Can I pay with my mobile phone?'])
+  assert.equal(h.rec.stops, 0)
+})
+
+test('a numeric-only interim is retained when a result index is reused', t => {
+  const h = harness(t)
+  h.emit([{ text: '$25' }])
+  h.emit([{ text: 'Can I pay with my mobile phone?', final: true, confidence: .98 }])
+  assert.deepEqual(h.segments.map(s => s.text), ['$25', 'Can I pay with my mobile phone?'])
+})
+
+for (const interim of ['Turn left', 'The station']) test(`short unrelated nonnumeric interim is retained: ${interim}`, t => {
+  const h = harness(t)
+  h.emit([{ text: interim }])
+  h.emit([{ text: 'The museum opens Sunday.', final: true, confidence: .98 }])
+  assert.deepEqual(h.segments.map(s => s.text), [interim, 'The museum opens Sunday.'])
+})
+
+test('meeting index replacements retain budget and margin before ARR and retention finals', t => {
+  const h = harness(t)
+  const budget = 'The budget is 2.4 million US dollars, purple lantern.'
+  const arr = { text: 's from 12.5 million to 13.2 million US dollars not 30.2 million keep the forecast', final: true, confidence: .96 }
+  const margin = 'Gross margin fell by 25 basis points, not 25 percent.'
+  const retention = { text: 'Move the go-live to August 19; keep net revenue retention above 110%.', final: true, confidence: .95 }
+  h.emit([{ text: budget }]); t.mock.timers.tick(1500)
+  h.emit([arr])
+  h.emit([arr, { text: margin }]); t.mock.timers.tick(1500)
+  h.emit([arr, retention])
+  h.emit([arr, retention])
+  assert.deepEqual(h.segments.map(s => s.text), [budget, arr.text, margin, retention.text])
+  assert.equal(h.rec.stops, 0)
+})
+
+const travelerEvents = readFileSync(new URL('./traveler-v3-speech.jsonl', import.meta.url), 'utf8').trim().split('\n').map(line => JSON.parse(line))
+const playbacks = travelerEvents.flatMap((event, index) => event.kind === 'mark' && /playback begin/.test(event.name) ? [{ index, name: event.name }] : [])
+for (const [index, playback] of playbacks.entries()) test(`actual traveler v3 JSONL: ${playback.name}`, t => {
+  const h = harness(t)
+  const events = travelerEvents.slice(playback.index, playbacks[index + 1]?.index)
+  let rows = []; let time = Date.parse(events[0].t)
+  for (const event of events) {
+    const now = Date.parse(event.t); t.mock.timers.tick(now - time); time = now
+    if (event.kind === 'result') {
+      rows = [...rows.slice(0, event.index), ...event.results]
+      h.emit(rows, event.index)
+    } else if (event.kind === 'end') { h.rec.onend(); rows = [] }
+    else if (event.kind === 'start') h.rec.onstart()
+    else if (event.kind === 'error') h.rec.onerror({ error: event.error })
+    else if (event.kind === 'call:stop') h.controller.stop()
+  }
+  t.mock.timers.tick(1500)
+  if (!playback.name.startsWith('rapid')) {
+    assert.deepEqual(h.segments.map(s => s.text), [
+      'excuse me where can I buy a train ticket',
+      'is the museum open tomorrow morning',
+      'thank you I would like a cup of green tea'
+    ])
+    return
+  }
+  const ticket = h.segments.filter(s => /ticket costs \$25/i.test(s.text))
+  const phone = h.segments.filter(s => /can I pay with my mobile phone/i.test(s.text))
+  assert.equal(ticket.length, 1, JSON.stringify(h.segments))
+  assert.equal(phone.length, 1, JSON.stringify(h.segments))
+  assert.notEqual(ticket[0].id, phone[0].id)
+  assert.equal(h.segments.length, 3, JSON.stringify(h.segments))
+  assert.deepEqual(h.segments.map(s => s.text), ['the subway leaves at 6:30', 'the ticket costs $25', 'can I pay with my mobile phone'])
+  assert.ok(ticket[0].numericWarnings.includes('interim'))
+  assert.deepEqual(phone[0].numericWarnings, [])
+  assert.equal(ticket[0].confidence, undefined)
 })

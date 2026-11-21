@@ -10,7 +10,37 @@ function sentences(text) {
     return Array.from({ length: Math.ceil(tokens.length / 30) }, (_, i) => slice(s, tokens, i * 30, Math.min((i + 1) * 30, tokens.length)))
   }).filter(Boolean)
 }
-function session() { return { text: '', parts: [], finals: [], committedCharacters: 0, timer: undefined, awaitingFinal: false, flushed: false, observations: [], risks: [], afterRestart: false } }
+function related(left, right) {
+  const a = normalized(left); const b = normalized(right)
+  let prefix = 0
+  while (prefix < Math.min(a.length, b.length) && a[prefix] === b[prefix]) prefix++
+  if (prefix >= Math.min(a.length, b.length) || prefix >= 2 || prefix === 1 && a.length === 2 && b.length === 2 && a[0].length >= 4) return true
+  const remaining = [...b]
+  const shared = a.filter(word => { const index = remaining.indexOf(word); if (index < 0) return false; remaining.splice(index, 1); return true }).length
+  return shared >= Math.min(a.length, b.length) * .6
+}
+function session() { return { text: '', rows: [], retained: [], parts: [], finals: [], committedCharacters: 0, timer: undefined, awaitingFinal: false, flushed: false, observations: [], risks: [], afterRestart: false } }
+function trackRows(s, incoming) {
+  const first = s.rows.find(row => !row.final)?.index
+  const before = normalized(s.rows.filter(row => row.index >= first).map(row => row.text).join(' ')).join(' ')
+  const after = normalized(incoming.filter(row => row.index >= first).map(row => row.text).join(' ')).join(' ')
+  const prefix = before.split(' ').slice(0, 2).join(' ')
+  const repartitioned = before && after && (before.startsWith(after) || after.startsWith(before) || prefix.includes(' ') && after.startsWith(`${prefix} `))
+  s.rows = incoming.map(row => {
+    const previous = s.rows.find(old => old.index === row.index)
+    if (previous && !previous.final) {
+      const observed = previous.observed || previous
+      const fragment = !row.final && words(observed.text).length <= 3 && !/[.!?]$/.test(observed.text) && !numericValues(observed.text).length && !s.parts.some(part => part.text === observed.text)
+      if (!fragment && !repartitioned && !related(observed.text, row.text)) {
+        if (!row.final) return previous
+        s.retained.push({ ...observed, final: true, saved: true, confidence: undefined })
+      }
+      if (!row.final) return { ...row, observed: words(row.text).length >= words(observed.text).length ? row : observed }
+    }
+    return row
+  })
+  return s.rows.flatMap(row => [...s.retained.filter(old => old.index === row.index), row])
+}
 function risk(s, start, end, reason) {
   if (!s.risks.some(r => r.start === start && r.end === end && r.reason === reason)) s.risks.push({ start, end, reason })
 }
@@ -31,16 +61,19 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
   }
   const metadata = (s, start, end, saved = false) => {
     const final = s.finals.find(range => end <= range.end)
-    return { confidence: final?.confidence, provisional: !final, forced: !final && saved, numericWarnings: [...new Set(s.risks.filter(r => r.start < end && r.end > start).map(r => r.reason))] }
+    return { confidence: final?.confidence, provisional: !final || !!final.saved, forced: !!final?.saved || !final && saved, numericWarnings: [...new Set(s.risks.filter(r => r.start < end && r.end > start).map(r => r.reason))] }
   }
   const publishedWords = s => s.parts.reduce((sum, p) => sum + p.count, 0)
   function publish(s, start, end, saved = false) {
     const tokens = words(s.text)
-    for (const text of sentences(slice(s.text, tokens, start, end))) {
-      const count = words(text).length
-      const meta = metadata(s, start, start + count, saved)
-      start += count
-      s.parts.push({ id: commit(text, meta), text, count, ...meta })
+    while (start < end) {
+      const boundary = Math.min(end, s.finals.find(range => range.end > start)?.end || end)
+      for (const text of sentences(slice(s.text, tokens, start, boundary))) {
+        const count = words(text).length
+        const meta = metadata(s, start, start + count, saved)
+        start += count
+        s.parts.push({ id: commit(text, meta), text, count, ...meta })
+      }
     }
     s.committedCharacters = end ? tokens[end - 1].index + tokens[end - 1][0].length : 0
   }
@@ -60,8 +93,9 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
       }
       const replacement = slice(text, tokens, offset, end)
       const meta = metadata(s, offset, end, part.forced)
-      const accepted = meta.provisional ? part.text : replacement
-      if ((!meta.provisional && (matching < end || part.text !== accepted)) || part.provisional !== meta.provisional || part.confidence !== meta.confidence || part.numericWarnings?.join() !== meta.numericWarnings.join()) revise(part.id, accepted, meta)
+      const extended = final?.saved && normalized(replacement).slice(0, part.count).join() === normalized(part.text).join()
+      const accepted = meta.provisional && !extended ? part.text : replacement
+      if ((!meta.provisional && matching < end) || part.text !== accepted || part.provisional !== meta.provisional || part.forced !== meta.forced || part.confidence !== meta.confidence || part.numericWarnings?.join() !== meta.numericWarnings.join()) revise(part.id, accepted, meta)
       Object.assign(part, { text: accepted, count: words(accepted).length, ...meta })
       offset += part.count
     }
@@ -82,7 +116,17 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
     for (let i = start; i < common; i++) if (/[.!?,;:]$/.test(tokens[i][0])) end = i + 1
     if (paused) end = common
     else if (end === start && common - start >= 25) end = common - 1
-    if (end > start) publish(s, start, end)
+    if (end > start) {
+      const last = s.parts.at(-1)
+      const offset = start - (last?.count || 0)
+      const extended = slice(s.text, tokens, offset, end)
+      if (last?.provisional && !last.forced && sentences(extended).length === 1 && words(extended).length <= 40) {
+        const meta = metadata(s, offset, end)
+        revise(last.id, extended, meta)
+        Object.assign(last, { text: extended, count: words(extended).length, ...meta })
+        s.committedCharacters = tokens[end - 1].index + tokens[end - 1][0].length
+      } else publish(s, start, end)
+    }
   }
   function flush(s) {
     s.flushed = true
@@ -97,27 +141,33 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
   rec.onstart = rec.onaudiostart = () => { failed = false; clearTimeout(retryTimer); retryTimer = undefined; if (wanted) { state('listening'); if (!failures) message('') } }
   rec.onresult = event => {
     message('')
-    const rows = Array.from(event.results, result => ({ text: result[0].transcript.trim(), final: result.isFinal, confidence: result[0].confidence, alternatives: Array.from(result, a => a.transcript) })).filter(r => r.text)
+    const incoming = Array.from(event.results, (result, index) => ({ index, text: result[0].transcript.trim(), final: result.isFinal, confidence: result[0].confidence, alternatives: Array.from(result, a => a.transcript) })).filter(r => r.text)
+    if (!incoming.length) return
+    const candidate = normalized(incoming.map(r => r.text).join(' ')); const old = normalized(closing?.text || '')
+    const overlap = candidate.slice(0, 10).filter(word => old.slice(0, 10).includes(word)).length
+    const matchesClosing = closing?.awaitingFinal && incoming[0].final && ((!closing.flushed && !current.text) || overlap >= Math.min(candidate.length, old.length, 10) * .6)
+    const target = matchesClosing ? closing : current
+    const rows = trackRows(target, incoming)
     const text = rows.map(r => r.text).join(' ')
     let count = 0
     const finals = []
-    for (const row of rows) { count += words(row.text).length; if (row.final) finals.push({ end: count, confidence: Number.isFinite(row.confidence) ? row.confidence : undefined }); else break }
-    const candidate = normalized(text); const old = normalized(closing?.text || '')
-    const overlap = candidate.slice(0, 10).filter(word => old.slice(0, 10).includes(word)).length
-    const matchesClosing = closing?.awaitingFinal && finals.length && ((!closing.flushed && !current.text) || overlap >= Math.min(candidate.length, old.length, 10) * .6)
-    const target = matchesClosing ? closing : current
+    for (const row of rows) { count += words(row.text).length; if (row.final) finals.push({ end: count, confidence: Number.isFinite(row.confidence) ? row.confidence : undefined, saved: row.saved }); else break }
     const previous = target.text
     let offset = 0
     for (const row of rows) {
       const end = offset + words(row.text).length
       const values = numericValues(row.text)
+      if (row.saved && values.length) risk(target, offset, end, 'interim')
       if (row.alternatives.some(alt => numericValues(alt).join() !== values.join())) risk(target, offset, end, 'alternatives')
       offset = end
     }
     const finalEnd = finals.at(-1)?.end || 0
     const tokens = words(text)
     if (finalEnd === tokens.length) {
-      for (const observation of target.observations) if (missing(observation.values, numericValues(slice(text, tokens, Math.min(observation.start, finalEnd), finalEnd)))) risk(target, observation.start, finalEnd, 'interim')
+      for (const observation of target.observations) {
+        const end = finals.find(range => range.end > observation.start)?.end || finalEnd
+        if (missing(observation.values, numericValues(slice(text, tokens, Math.min(observation.start, end), end)))) risk(target, observation.start, end, 'interim')
+      }
       target.observations = []
     } else {
       const values = numericValues(slice(text, tokens, finalEnd, tokens.length))

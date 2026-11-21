@@ -1,6 +1,7 @@
 import { meetingPrompt, normalizeBusiness, protectNames, protectCurrency } from './business.mjs'
 import { traditional, translationBuffer } from './traditional.mjs'
 import { createLimiter, retry } from './retry.mjs'
+import { negationMismatch, normalizeNegations } from './negation.mjs'
 
 const limited = createLimiter(2)
 const headers = { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }
@@ -28,27 +29,29 @@ export async function translateHandler(req) {
   const env = typeof process !== 'undefined' ? process.env : {}
   try {
     if (!env.OPENAI_API_KEY) {
-      const currency = protectCurrency(normalizeBusiness(text))
+      const currency = protectCurrency(normalizeNegations(normalizeBusiness(text)))
       const protectedText = protectNames(currency.text)
       const result = await limited(() => retry(async () => {
         const response = await upstream(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-TW&dt=t&q=${encodeURIComponent(protectedText.text)}`, { signal: req.signal })
         const data = await response.json()
         const result = data[0].map(part => part[0] || '').join('')
         if (!result.trim()) throw new Error('Empty translation')
-        return traditional(currency.restore(protectedText.restore(result)))
+        const translated = traditional(currency.restore(protectedText.restore(result)))
+        if (negationMismatch(text, translated)) throw new Error('Translation lost a negation')
+        return translated
       }, { signal: req.signal }))
       return new Response(result, { headers })
     }
-    const messages = [{ role: 'system', content: meetingPrompt }]
+    const messages = [{ role: 'system', content: `${meetingPrompt} Keep the scope of every not, don't, never, and no. In particular, not 30.2 million must exclude that amount (不是 3020 萬); an unrelated 不變 does not preserve that exclusion. Never turn an exclusion into a positive amount or a less-than comparison.` }]
     if (context.length) messages.push({ role: 'user', content: `Previous committed segments (context only):\n${JSON.stringify(context)}` }, { role: 'assistant', content: 'I will use these only for terminology consistency.' })
     messages.push({ role: 'user', content: text })
     const response = await limited(() => retry(() => upstream('https://api.openai.com/v1/chat/completions', { method: 'POST', signal: req.signal, headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model: env.OPENAI_MODEL || 'gpt-4o-mini', stream: true, messages }) }), { signal: req.signal }))
     if (!response.body) throw new Error('Missing stream')
     const reader = response.body.getReader(); const decoder = new TextDecoder(); const encoder = new TextEncoder()
-    let buffer = ''; let received = false; let completed = false
+    let buffer = ''; let received = false; let completed = false; let translated = ''
     const stream = new ReadableStream({
       async start(controller) {
-        const output = translationBuffer(text => { if (text) { received = true; controller.enqueue(encoder.encode(text)) } })
+        const output = translationBuffer(text => { if (text) { translated += text; received = true; controller.enqueue(encoder.encode(text)) } })
         const line = value => {
           if (!value.startsWith('data: ')) return
           const payload = value.slice(6).trim()
@@ -70,6 +73,7 @@ export async function translateHandler(req) {
           if (!completed) throw new Error('Translation stream interrupted')
           output.finish()
           if (!received) throw new Error('Empty translation')
+          if (negationMismatch(text, translated)) throw new Error('Translation lost a negation')
           controller.close()
         } catch (error) { controller.error(error) } finally { reader.releaseLock() }
       },

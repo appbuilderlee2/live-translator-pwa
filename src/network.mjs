@@ -1,5 +1,6 @@
 import { retry } from '../shared/retry.mjs'
 import { traditional } from '../shared/traditional.mjs'
+import { negationMismatch } from '../shared/negation.mjs'
 
 export async function networkTranslation(text, signal, update, context = []) {
   return retry(async () => {
@@ -19,6 +20,7 @@ export async function networkTranslation(text, signal, update, context = []) {
       }
     } finally { reader.releaseLock() }
     if (!result.trim()) throw new Error('未收到譯文，請重新翻譯。No translation received. Please retry.')
+    if (negationMismatch(text, traditional(result))) throw new Error('否定詞可能遺漏或範圍不符 / Negation may be missing or misplaced')
     return traditional(result)
   }, { signal, attempts: 2, delay: 300 })
 }

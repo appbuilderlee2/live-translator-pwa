@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { traditional } from '../shared/traditional.mjs'
+import { negationMismatch } from '../shared/negation.mjs'
 import { networkTranslation } from './network.mjs'
 import { numericMismatch, splitText, recoverSegment, retryableSegments, previousContext } from './transcript.mjs'
 import { createSpeechController } from './speech.mjs'
@@ -31,6 +32,7 @@ function warnings(segment: Segment) {
   const labels: Record<string, string> = { alternatives: '數字候選不一致 / numeric alternatives disagree', interim: '辨識數字曾變動或遺漏 / recognized figures changed or disappeared', boundary: '數字跨越收音中斷 / figures cross a recognition boundary' }
   const result = (segment.numericWarnings || []).map(reason => labels[reason]).filter(Boolean)
   if (segment.status === 'done' && numericMismatch(segment.en, segment.zh)) result.push('數字可能不符 / figures may not match')
+  if (segment.zh && segment.status !== 'translating' && negationMismatch(segment.en, segment.zh)) result.push('否定詞可能遺漏或範圍不符 / negation may be missing or misplaced')
   if (!segment.provisional && !segment.forced && segment.confidence !== undefined && segment.confidence < .8) result.push('辨識信心較低 / low speech confidence')
   return result
 }
@@ -53,7 +55,9 @@ async function translate(text: string, signal: AbortSignal, update: (text: strin
     try {
       const result = await Promise.race([local.translate(text), new Promise<never>((_, reject) => setTimeout(() => reject(new Error('On-device translation timed out')), 5000))])
       if (signal.aborted) throw new DOMException('Aborted', 'AbortError')
-      const zh = traditional(result); update(zh); return zh
+      const zh = traditional(result)
+      if (negationMismatch(text, zh)) throw new Error('Negation may be missing')
+      update(zh); return zh
     } catch { if (signal.aborted) throw new DOMException('Aborted', 'AbortError') }
   }
   if (!navigator.onLine) throw new Error('offline')
