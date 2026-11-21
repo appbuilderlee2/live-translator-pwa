@@ -8,7 +8,7 @@ export function readableChinese(source = '', text = '', complete = true) {
   if (/[$€£]|\b(?:dollars?|USD|TWD|euros?|yen)\b/i.test(source)) text = text.replace(/(\d)[，,]\s*(?=(?:美|加|澳|港|新臺|新台|日|歐)?元)/g, '$1')
   text = text.replace(/(^|[，。；！？])\s*請。\s*(?=[\p{Script=Han}])/gu, '$1請')
   const sentences = source.match(/[.!?](?:\s|$)/g)?.length || 0
-  if (sentences < 2 && (source.match(/\b[a-z]+\b/gi)?.length || 0) < 25) return text
+  if (sentences < 2 && (source.match(/\b[a-z]+\b/gi)?.length || 0) < 25 && (text.match(/\p{Script=Han}/gu)?.length || 0) < 40) return text
   let result = text
   const separate = pattern => {
     result = result.replace(pattern, (match, last, offset) => /(?:希望|認為|覺得|相信|告訴|說|是否|如果|只要|讓|叫|問|知道|以便|以為|想|但|但是|而且|因為|所以|然後|(?:告訴|問|讓|叫)[我你他她])$/.test(result.slice(0, offset + last.length)) ? match : `${last}。`)
@@ -32,7 +32,9 @@ export function readableChinese(source = '', text = '', complete = true) {
   }
   const lectureBoundaries = [
     [/\bthis is the end of\b/i, /([\p{Script=Han}\d])\s*(?=這是[^。！？；，]{0,24}(?:結束|結尾))/gu],
-    [/\btoday we are discussing\b/i, /([\p{Script=Han}\d])\s*(?=(?:今天)?我們(?:今天)?(?:正在)?討論)/gu],
+    [/\btoday we are discussing\b/i, /([\p{Script=Han}\d])(?<!今天)\s*(?=(?:今天)?我們(?:今天)?(?:正在)?討論)/gu],
+    [/\ba scientific experiment begins\b/i, /([\p{Script=Han}\d])\s*(?=科學實驗從)/gu],
+    [/\bwe change one factor\b/i, /([\p{Script=Han}\d])\s*(?=我們改變一個因素)/gu],
     [/\bsolar panels (?:convert|turn)\b/i, /([\p{Script=Han}\d])\s*(?=太陽能(?:電池)?板(?:將|把|可|能))/gu],
     [/\ba school can\b/i, /([\p{Script=Han}\d])\s*(?=學校(?:可以|能夠|可|能))/gu],
     [/\bbatteries can\b/i, /([\p{Script=Han}\d])\s*(?=電池(?:可以|能夠|可|能))/gu],

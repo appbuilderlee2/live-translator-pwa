@@ -184,7 +184,8 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
     later(() => { for (const s of sessions) flush(s) })
   }
   function previewCurrent() { preview(current.text.slice(current.committedCharacters).trim()) }
-  rec.onstart = rec.onaudiostart = () => { failed = false; clearTimeout(retryTimer); retryTimer = undefined; if (wanted) { state('listening'); message('') } }
+  rec.onstart = () => { clearTimeout(retryTimer); retryTimer = undefined }
+  rec.onaudiostart = () => { failed = false; clearTimeout(retryTimer); retryTimer = undefined; if (wanted) { state('listening'); message('') } }
   rec.onresult = event => {
     message('')
     const incoming = Array.from(event.results, (result, index) => ({ index, text: result[0].transcript.trim(), final: result.isFinal, confidence: result[0].confidence, alternatives: Array.from(result, a => a.transcript) })).filter(r => r.text)
@@ -272,7 +273,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
     else { state('idle'); endListening() }
   }
   function startRecognition() {
-    try { state('requesting'); running = true; rec.start() } catch { running = false; failed = true; message('無法啟動麥克風，正在重試。請檢查權限或按「重試麥克風」。Could not start microphone. Retrying; check permissions or Retry mic.'); scheduleRetry() }
+    try { state(failed ? 'retrying' : 'requesting'); running = true; rec.start() } catch { running = false; failed = true; message('無法啟動麥克風，正在重試。請檢查權限或按「重試麥克風」。Could not start microphone. Retrying; check permissions or Retry mic.'); scheduleRetry() }
   }
   function scheduleRetry() {
     if (!wanted || retryTimer !== undefined) return

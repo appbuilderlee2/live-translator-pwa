@@ -77,7 +77,8 @@ function fixture(t) {
 test('speech requests permission before listening; saves interim without stopping and restarts immediately', t => {
   const f = fixture(t); f.controller.start()
   assert.equal(f.states.at(-1), 'requesting'); assert.equal(f.rec.maxAlternatives, 3)
-  f.rec.onstart(); assert.equal(f.states.at(-1), 'listening')
+  f.rec.onstart(); assert.equal(f.states.at(-1), 'requesting')
+  f.rec.onaudiostart(); assert.equal(f.states.at(-1), 'listening')
   f.rec.onerror({ error: 'no-speech' }); assert.match(f.messages.at(-1), /No speech/)
   f.emit(f.result('Do not lose this')); assert.equal(f.messages.at(-1), '')
   t.mock.timers.tick(1200); assert.equal(f.rec.stops, 0)

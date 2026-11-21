@@ -62,7 +62,7 @@ test('ending an empty recognition session does not create translation work', asy
   assert.equal(commits, 0)
 })
 
-for (const event of ['onstart', 'onaudiostart', 'onresult']) test(`resumed ${event} clears stale microphone retry state and notice`, t => {
+for (const event of ['onaudiostart', 'onresult']) test(`resumed ${event} clears stale microphone retry state and notice`, t => {
   t.mock.timers.enable({ apis: ['setTimeout'] })
   const rec = { starts: 0, start() { this.starts++ }, stop() {} }
   let state; let message
