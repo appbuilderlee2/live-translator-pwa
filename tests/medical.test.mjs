@@ -64,9 +64,10 @@ test('Google and OpenAI protect the report medical meanings and unchanged dosage
   }
 })
 
-test('currency provenance distinguishes recognizer formatting from explicit typed symbols and named currencies', async t => {
+test('unqualified dollar symbols stay neutral in typed and spoken text; named currencies remain explicit', async t => {
   assert.equal(currencySource('I have $20 and the fare is $2.', true), 'I have 20 dollars and the fare is 2 dollars.')
-  assert.equal(currencySource('I have $20.'), 'I have $20.')
+  assert.equal(currencySource('I have $20.'), 'I have 20 dollars.')
+  assert.equal(currencySource('I have $20 dollars.'), 'I have 20 dollars.')
   for (const input of ['US$20', 'USD $20', '$20 USD', 'CAD$20', 'HK$20']) assert.equal(currencySource(input, true), input)
   for (const input of ['US twenty dollars', 'USD 2 dollars', 'two Canadian dollars', 'two dollars USD']) assert.equal(protectCurrency(input).text, input)
   assert.equal(protectCurrency('US dollars and two dollars').text, 'US dollars and two __CURRENCY_UNIT__')
@@ -75,7 +76,7 @@ test('currency provenance distinguishes recognizer formatting from explicit type
   t.after(() => { globalThis.fetch = original; if (key === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = key })
   for (const provider of ['Google', 'OpenAI']) {
     if (provider === 'Google') delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = 'test'
-    for (const [input, spoken, protectedUnit] of [['The fare is two dollars', false, true], ['The fare is $2', true, true], ['The fare is $2', false, false], ['The fare is US$2', true, false]]) {
+    for (const [input, spoken, protectedUnit] of [['The fare is two dollars', false, true], ['The fare is $2', true, true], ['The fare is $2', false, true], ['The fare is US$2', true, false]]) {
       globalThis.fetch = async (url, options) => {
         const source = provider === 'Google' ? new URL(url).searchParams.get('q') : JSON.parse(options.body).messages.at(-1).content
         assert.equal(source.includes('__CURRENCY_UNIT__'), protectedUnit)
@@ -86,6 +87,16 @@ test('currency provenance distinguishes recognizer formatting from explicit type
       assert.equal(output, protectedUnit ? '車資是兩 元。' : '車資是兩美元。')
     }
   }
+})
+
+test('safe accidental CJK double collapse preserves legitimate reduplications and community wording', () => {
+  assert.equal(traditional('服用此藥前請請藥師幫忙檢視藥品標籤'), '服用此藥前請藥師幫忙檢視藥品標籤')
+  assert.equal(traditional('請請請慢慢、常常、謝謝、天天、看看、人人、年年、好好、爸爸、媽媽'), '請慢慢、常常、謝謝、天天、看看、人人、年年、好好、爸爸、媽媽')
+  assert.equal(traditional('社群健走活動、社區健走活動、社群步行活動'), '社區健走活動、社區健走活動、社區健走活動')
+  assert.equal(traditional(''), '')
+  const chunks = []; const output = translationBuffer(text => chunks.push(text))
+  output.push('請'); output.push('請參加社區健'); output.push('走活動。'); output.finish()
+  assert.equal(chunks.join(''), '請參加社區健走活動。')
 })
 
 test('Taiwan report wording works in complete and split streamed translations, without changing foreign systems', () => {

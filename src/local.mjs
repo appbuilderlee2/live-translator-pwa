@@ -10,6 +10,8 @@ export function coverageMismatch(source, translated) {
   if (!translated.trim() || numericMismatch(source, translated)) return true
   const words = source.match(/[a-z]+(?:['’][a-z]+)?/gi)?.length || 0
   const letters = translated.match(/[\p{L}\p{N}]/gu)?.length || 0
+  if (/\bTaipei\b|臺北|台北/i.test(source) && !/臺北|台北|\bTaipei\b/i.test(translated)) return true
+  if (/(?:臺北|台北).*捷運站|Taipei (?:subway|metro) station/i.test(source) && !/捷運站|地鐵站|地铁站|MRT station/i.test(translated)) return true
   return words >= 8 && letters < words * .65 || words >= 5 && letters < 2
 }
 
@@ -22,7 +24,7 @@ export async function localTranslation(local, text, signal, context = [], option
   const source = normalizeMedical(currency.text, context)
   const translated = []
   for (const chunk of localChunks(source)) {
-    const result = await withTimeout(() => local.translate(chunk), { signal, timeout: options.preview ? 1200 : 2500 })
+    const result = traditional(await withTimeout(() => local.translate(chunk), { signal, timeout: options.preview ? 1200 : 2500 }))
     if (coverageMismatch(chunk, result)) throw new Error('On-device translation may be incomplete')
     translated.push(result)
   }

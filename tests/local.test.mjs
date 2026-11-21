@@ -8,6 +8,32 @@ const truncated = '明天早上 9:15 火車出發 我們需要四瓶水和兩個
 const full = '明天早上 9 點 15 分火車出發，我們需要四瓶水和兩個三明治，請幫我們找到 6 號月臺，謝謝您說得很慢，並且解釋得這麼清楚'
 const signal = () => new AbortController().signal
 
+test('Taipei destination and trailing figures must survive local output; accepted output gets Taiwan normalization', async () => {
+  const source = 'Please take a taxi to the Taipei subway station.'
+  let calls = 0
+  const fallback = async text => { assert.equal(text, source); calls++; return '請搭計程車到臺北捷運站。' }
+  const updates = []
+  for (const output of ['請搭乘計程車到中華', '請搭計程車到臺北', '']) {
+    assert.equal(await translateWithFallback({ translate: async () => output }, source, signal(), text => updates.push(text), [], {}, fallback), '請搭計程車到臺北捷運站。')
+  }
+  assert.equal(calls, 3)
+  assert.equal(await localTranslation({ translate: async () => '请搭计程车到台北地铁站。' }, source, signal()), '請搭計程車到臺北捷運站。')
+  assert.equal(coverageMismatch('Please take a taxi to the Taipei subway station at 6:30 for $25.', '請搭計程車到臺北捷運站。'), true)
+  assert.equal(await localTranslation({ translate: async () => '社群健走活動，請請慢慢看看。' }, 'Community walking event with a slow look.', signal()), '社區健走活動，請慢慢看看。')
+})
+
+test('local bare-dollar units are neutral or fall back; explicit US currency is preserved', async () => {
+  for (const spoken of [false, true]) {
+    const local = { translate: async source => { assert.match(source, /25 __CURRENCY_UNIT__/); return '票價 25 __CURRENCY_UNIT__' } }
+    assert.equal(await localTranslation(local, 'The ticket costs $25', signal(), [], { spoken }), '票價 25 元')
+    let calls = 0
+    const fallback = async (text, _signal, _update, _context, options) => { calls++; assert.equal(text, 'The ticket costs $25'); assert.equal(options.spoken, spoken); return '票價 25 元' }
+    assert.equal(await translateWithFallback({ translate: async () => '票價 25 美元' }, 'The ticket costs $25', signal(), () => {}, [], { spoken }, fallback), '票價 25 元')
+    assert.equal(calls, 1)
+  }
+  assert.equal(await localTranslation({ translate: async () => '票價 25 美元' }, 'The ticket costs US$25', signal()), '票價 25 美元')
+})
+
 test('chunks the supplied five-paragraph passage without dropping words; handles unpunctuated late final', async () => {
   const passage = await readFile(new URL('./edge-v3-passage.txt', import.meta.url), 'utf8')
   const chunks = localChunks(passage)

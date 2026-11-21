@@ -1,6 +1,17 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { createTranscriptFollower } from '../src/follow.mjs'
+import { createTranscriptFollower, jumpLabel } from '../src/follow.mjs'
+
+test('jump appears only with content below, never labels zero or saved captions as new', () => {
+  for (const saved of [false, true]) {
+    assert.equal(jumpLabel(true, 2, saved, 500), '')
+    assert.equal(jumpLabel(false, 0, saved, 0), '')
+    assert.equal(jumpLabel(false, 2, saved, 80), '')
+    assert.equal(jumpLabel(false, 0, saved, 500), '跳至底部 / Jump to bottom')
+  }
+  assert.match(jumpLabel(false, 2, false, 500), /2 則新字幕/)
+  assert.equal(jumpLabel(false, 2, true, 500), '跳至底部 / Jump to bottom')
+})
 
 test('follows only near the bottom and counts new captions, not streamed updates', () => {
   const follower = createTranscriptFollower()

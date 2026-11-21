@@ -1,6 +1,6 @@
 import { meetingPrompt, normalizeBusiness, protectNames, protectCurrency, currencySource } from './business.mjs'
 import { traditional, translationBuffer } from './traditional.mjs'
-import { createLimiter, createRateLimiter, retry, withTimeout } from './retry.mjs'
+import { createLimiter, createRateLimiter, retry, retryAfter, withTimeout } from './retry.mjs'
 import { negationMismatch, normalizeNegations } from './negation.mjs'
 import { medicalPrompt, normalizeMedical, protectMedical, medicalTranslation, medicalWarnings } from './medical.mjs'
 
@@ -14,6 +14,8 @@ async function upstream(url, options) {
     await response.body?.cancel()
     const error = new Error('Translation provider unavailable')
     error.retryable = response.status === 408 || response.status === 429 || response.status >= 500
+    error.status = response.status
+    error.retryAfter = retryAfter(response.headers.get('Retry-After'))
     throw error
   }
   return response
@@ -44,8 +46,9 @@ export async function translateHandler(req) {
       const protectedText = protectNames(medical.text)
       let endpoint = 0
       const result = await attempt(async signal => {
-        const host = ['translate.googleapis.com', 'translate.google.com'][endpoint++ % 2]
-        const response = await upstream(`https://${host}/translate_a/single?client=gtx&sl=en&tl=zh-TW&dt=t&q=${encodeURIComponent(protectedText.text)}`, { signal, preview })
+        const target = new URL([env.GOOGLE_TRANSLATE_URL || 'https://translate.googleapis.com/translate_a/single', env.GOOGLE_TRANSLATE_FALLBACK_URL || 'https://translate.google.com/translate_a/single'][endpoint++ % 2])
+        for (const [key, value] of Object.entries({ client: 'gtx', sl: 'en', tl: 'zh-TW', dt: 't', q: protectedText.text })) target.searchParams.set(key, value)
+        const response = await upstream(target.toString(), { signal, preview })
         const data = await response.json()
         const result = data[0].map(part => part[0] || '').join('')
         if (!result.trim()) throw new Error('Empty translation')
@@ -96,5 +99,5 @@ export async function translateHandler(req) {
       cancel() { return reader.cancel() }
     })
     return new Response(stream, { headers })
-  } catch { return new Response('Translation unavailable. Please try again.', { status: 502 }) }
+  } catch (error) { return new Response('Translation unavailable. Please try again.', { status: error.status === 429 ? 429 : 502, headers: error.status === 429 ? { 'Retry-After': String(Math.ceil((error.retryAfter ?? 1000) / 1000)) } : {} }) }
 }

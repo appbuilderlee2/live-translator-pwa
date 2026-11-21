@@ -1,3 +1,8 @@
+export function jumpLabel(following, unread, saved, distance) {
+  if (following || distance <= 80) return ''
+  return saved || !unread ? '跳至底部 / Jump to bottom' : `跳到最新 / Latest · ${unread} 則新字幕 / new captions`
+}
+
 export function createTranscriptFollower() {
   let following = true
   let previous

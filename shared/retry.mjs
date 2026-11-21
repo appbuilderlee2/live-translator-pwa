@@ -1,3 +1,10 @@
+export function retryAfter(value, now = Date.now()) {
+  if (value === null || value === undefined || !String(value).trim()) return undefined
+  const seconds = Number(value)
+  const milliseconds = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(value) - now
+  return Number.isFinite(milliseconds) ? Math.min(3000, Math.max(0, milliseconds)) : undefined
+}
+
 export async function retry(operation, { signal, attempts = 3, delay = 180 } = {}) {
   for (let attempt = 0; ; attempt++) {
     signal?.throwIfAborted()
@@ -5,7 +12,7 @@ export async function retry(operation, { signal, attempts = 3, delay = 180 } = {
       if (signal?.aborted || error.retryable === false || attempt + 1 >= attempts) throw error
       await new Promise((resolve, reject) => {
         const abort = () => { clearTimeout(timer); reject(signal.reason) }
-        const timer = setTimeout(() => { signal?.removeEventListener('abort', abort); resolve() }, delay * (attempt + 1))
+        const timer = setTimeout(() => { signal?.removeEventListener('abort', abort); resolve() }, Math.min(3000, Math.max(delay * (attempt + 1), error.retryAfter || 0)))
         signal?.addEventListener('abort', abort, { once: true })
       })
     }

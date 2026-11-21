@@ -20,12 +20,10 @@ header { height: 64px; }
 .bottom-bar .mic { width: 72px; height: 72px; flex-shrink: 0; }
 .bottom-bar .mic-group { gap: 6px; margin-right: 0; min-width: 0; }
 .bottom-bar .input-hint { margin-block: 4px; }
-.jump-latest { position: absolute; bottom: 80px; align-self: center; z-index: 2; max-width: calc(100% - 24px); min-height: 44px; border: 1px solid #c8ef99; border-radius: 8px; background: #263c29; color: #e0f0d4; padding: 8px 12px; font-size: 14px; }
 @media (min-width: 641px) {
   .toolbar { padding-block: 8px; }
   .sessionbar { padding-block: 4px; }
   .transcript-actions { padding-block: 6px; }
-  .jump-latest { bottom: 60px; }
 }
 .segment, .history-row, .subtitles, .english, .chinese { min-width: 0; overflow-wrap: anywhere; }
 .subtitles { overflow-x: hidden; }
@@ -66,6 +64,11 @@ header { height: 64px; }
 .large-ui h1 { font-size: 36px; }
 .large-ui .bottom-bar .mic-group > span { font-size: 16px; }
 .transcript-actions { align-items: center; }
+.transcript-actions { flex-wrap: wrap; }
+.transcript-actions .jump-latest { position: static; align-self: center; max-width: 100%; min-height: 44px; border: 1px solid #c8ef99; border-radius: 8px; background: #263c29; color: #e0f0d4; padding: 4px 8px; font-size: 13px; }
+.translation-replay { position: relative; display: block; }
+.translation-tooltip { position: absolute; bottom: 100%; left: 0; max-width: 100%; padding: 6px 9px; border: 1px solid #8ba779; border-radius: 6px; background: #263c29; color: #e0f0d4; font-family: var(--cjk-font); font-size: 16px; line-height: 1.5; visibility: hidden; pointer-events: none; z-index: 3; }
+.translation-replay:hover .translation-tooltip, .translation-replay:focus-within .translation-tooltip { visibility: visible; }
 @media (max-height: 850px) and (min-width: 951px) {
   .heading { padding-block: 8px; }
 }
@@ -74,7 +77,6 @@ header { height: 64px; }
   .heading { padding-block: 12px; }
   .workspace { height: calc(100dvh - 380px); min-height: 230px; }
   .bottom-bar { transform: none; width: auto; }
-  .jump-latest { bottom: 112px; }
   .app { padding-bottom: 240px; }
   .bottom-bar { position: fixed; z-index: 10; bottom: 0; left: 0; right: 0; padding: 8px 14px max(8px, env(safe-area-inset-bottom)); background: #101715f7; border-top: 1px solid #52674f; box-shadow: 0 -8px 24px #0004; }
   .bottom-bar .inputbox { margin: 0; padding-block: 5px; }
@@ -104,6 +106,22 @@ header { height: 64px; }
   .heading h1 { font-size: 28px; }
   .decor { display: none; }
   .transcript-actions > span { max-width: none; font-size: 12px; }
+}
+@media (max-width: 640px) and (min-height: 501px) {
+  header { height: 48px; }
+  .heading { display: none; }
+  .toolbar { padding: 6px 8px; flex-wrap: nowrap; gap: 6px; }
+  .languages { flex: 1; min-width: 0; gap: 6px; }
+  .sessionbar { padding-inline: 10px; gap: 4px; }
+  .sessionbar small, .fontcontrol > span { display: none; }
+  .fontcontrol { gap: 4px; }
+  .fontcontrol input { width: 66px; }
+  .workspace:has(.history) { display: flex; }
+  .history { position: absolute; inset: 60px 0 0; z-index: 4; max-height: none; overflow-y: auto; }
+  .subtitles { min-height: 200px; }
+  .transcript-actions > span { display: none; }
+  .transcript-actions { padding-block: 4px; }
+  .transcript-actions div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
 }
 @media (max-height: 500px) and (max-width: 950px) {
   header { display: none; }
