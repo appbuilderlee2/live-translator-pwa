@@ -5,6 +5,24 @@ const textWithContext = (text, context) => [...context.map(item => item.en), tex
 function medicinalTablets(text, context) {
   return /\b(?:pills?|tablets?)\b/i.test(text) && medicine.test(textWithContext(text, context)) && !/\b(?:tablet computer|tablet device|iPad|Android)\b/i.test(text)
 }
+function medicineClassifiers(text) {
+  const counts = new Map()
+  for (const match of text.matchAll(/\b(?:(kinds?|types?|sorts?)\s+of\s+)?(?:medicine\s+)?(?:tablets?|pills?|capsules?)\b/gi)) {
+    if (/^\s+(?:computers?|devices?)\b/i.test(text.slice(match.index + match[0].length))) continue
+    const before = text.slice(0, match.index).trimEnd()
+    for (const start of before.matchAll(/\b(?=\d|[a-z])/gi)) {
+      const number = before.slice(start.index)
+      if (numericPrefix(number).trim() !== number) continue
+      const values = numericValues(number)
+      if (values.length !== 1) continue
+      const classifiers = counts.get(values[0]) || new Set()
+      classifiers.add(match[1] ? '種' : '顆')
+      counts.set(values[0], classifiers)
+      break
+    }
+  }
+  return counts
+}
 function pressureReadings(text, context) {
   if (!/\bblood pressure\b/i.test(textWithContext(text, context))) return []
   const readings = []
@@ -42,6 +60,11 @@ export function medicalWarnings(text, translated, context = []) {
 
 export function medicalTranslation(text, translated, context = []) {
   if (medicinalTablets(text, context)) translated = translated.replace(/平板(?:電腦|电脑|計算機|计算机)|藥丸|藥物片劑|片劑/g, '藥錠')
+  const classifiers = medicineClassifiers(text)
+  translated = translated.replace(/([\d零〇一二三四五六七八九兩两十百千萬億]+(?:[.點][\d零〇一二三四五六七八九兩两]+)?)\s*(?:種類|種|個|片|粒|顆)?\s*(藥錠|藥片|藥丸|膠囊)/g, (match, number, noun) => {
+    const choices = classifiers.get(numericValues(number)[0])
+    return choices?.size === 1 ? `${number === '二' ? '兩' : number}${[...choices][0]}${noun}` : match
+  })
   for (const { values: [systolic, diastolic] } of pressureReadings(text, context)) {
     const number = value => String(value).replace(/\./g, '\\.')
     translated = translated.replace(new RegExp(`(?<![\\d.])${number(systolic)}\\s*(?:超過|超过|大於|大于|高於|高于)\\s*${number(diastolic)}(?![\\d.])`, 'g'), `${systolic}/${diastolic}`)
@@ -59,4 +82,4 @@ export function protectMedical(text, context = []) {
   } }
 }
 
-export const medicalPrompt = `Use medical context from the current and previous segments. Medicinal tablets/pills are 藥錠 or 藥片, never 平板電腦; a tablet computer remains a computer. A blood-pressure reading X over Y means X/Y (收縮壓 X、舒張壓 Y), never X 超過 Y. Preserve dosage, frequency, time limits, symptoms and negation exactly: one tablet twice daily after meals is 飯後每次一顆、一天兩次; no more than two tablets in 24 hours is 24 小時內不可超過兩顆. Check the label with the pharmacist before taking medicine means 用藥前請藥師協助確認藥品標示. Do not add diagnoses or medical advice. Use 公車, 社區健走活動, 紙本說明, and 拿給家庭醫師看 for the corresponding everyday Taiwan expressions.`
+export const medicalPrompt = `Use medical context from the current and previous segments. Medicinal tablets/pills are 藥錠 or 藥片, never 平板電腦; a tablet computer remains a computer. Count tablets, pills and capsules with 顆, not 種; use 種 only for explicit kinds/types of medicine. A blood-pressure reading X over Y means X/Y (收縮壓 X、舒張壓 Y), never X 超過 Y. Preserve dosage, frequency, time limits, symptoms and negation exactly: one tablet twice daily after meals is 飯後每次一顆、一天兩次; no more than two tablets in 24 hours is 24 小時內不可超過兩顆. Check the label with the pharmacist before taking medicine means 用藥前請藥師協助確認藥品標示. Do not add diagnoses or medical advice. Use 公車, 社區健走活動, 紙本說明, and 拿給家庭醫師看 for the corresponding everyday Taiwan expressions.`
