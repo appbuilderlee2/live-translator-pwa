@@ -58,3 +58,21 @@ export function numericValues(input) {
 export function numericPrefix(text) {
   return text.match(new RegExp(`^(?:US\\s*)?[$€£]?\\s*(?:\\d[\\d,]*(?:\\.\\d+)?(?:\\s*(?:thousand|million|billion|trillion|[kmbt]\\b))?|${phrase.source})(?:%|\\s+(?:percent|basis points))?(?:\\s+(?:US\\s+)?dollars?)?`, 'i'))?.[0] || ''
 }
+
+export function normalizeSpokenNumbers(text) {
+  return text.replace(phrase, value => {
+    const amount = value.replace(/[ -]+and$/i, '')
+    if (!/\b(?:thousand|million|billion|trillion)$/i.test(amount)) return value
+    if ((amount.match(/\b(?:thousand|million|billion|trillion)\b/gi) || []).length !== 1) return value
+    const values = numericValues(amount)
+    return values.length === 1 ? String(values[0]) + value.slice(amount.length) : value
+  })
+}
+
+export function currencyFigures(text) {
+  return text.replace(/[\d零〇一二三四五六七八九兩两十百千]+[點.][\d零〇一二三四五六七八九兩两]+(?:百萬|千萬|百億|千億)(?=\s*(?:美元|加元|澳元|港元|日圓|歐元|英鎊|元))/g, amount => {
+    const value = numericValues(amount)[0]
+    const [unit, scale] = value >= 1e8 ? ['億', 1e8] : ['萬', 1e4]
+    return `${Number((value / scale).toPrecision(12))}${unit}`
+  })
+}

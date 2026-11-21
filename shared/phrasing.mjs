@@ -1,4 +1,4 @@
-const clauseStarts = /\b(?:please|thank you|we need|we are not|we would rather|do not|don't|I would like|my friend needs|we can|there are)\b/i
+const clauseStarts = /\b(?:please|thank you|we need|we are not|we would rather|do not|don't|I would like|my friend needs|we can|there are|revenue was|this year revenue|gross margin|net revenue retention)\b/i
 
 export function speechClauses(text) {
   return text.split(new RegExp(`(?<=[.!?;])\\s+|(?<!\\b(?:hope|wish|think|believe|said|says|say|that|if|when|because|whether|know)\\s+)(?=${clauseStarts.source})`, 'i')).filter(chunk => chunk.trim())
@@ -16,6 +16,17 @@ export function readableChinese(source = '', text = '', complete = true) {
   if (/\bI would like\b/i.test(source)) separate(/([\p{Script=Han}\d])(?=我(?:想要|想|希望|要))/gu)
   if (/\bmy friend needs\b/i.test(source)) separate(/([\p{Script=Han}\d])(?=我的朋友(?:需要|想要))/gu)
   if (/\bthere are\b/i.test(source)) separate(/([\p{Script=Han}])(?=有[一二兩三四五六七八九十\d]+(?:個|位|名)?人(?:來|要來|會來))/gu)
+  const meetingBoundaries = [
+    [/\brevenue was\b/i, /([\p{Script=Han}\d%])\s*(?=(?:去年|上年|上一年)(?:的)?(?:營收|收入))/gu],
+    [/\bthis year revenue\b/i, /([\p{Script=Han}\d%])\s*(?=今年(?:的)?(?:營收|收入))/gu],
+    [/\bgross margin\b/i, /([\p{Script=Han}\d%])\s*(?=毛利率)/gu],
+    [/\bnet revenue retention\b/i, /([\p{Script=Han}\d%])\s*(?=淨(?:收入|營收|收益)(?:保留|留存)率)/gu]
+  ]
+  for (const [english, chinese] of meetingBoundaries) {
+    if (english.test(source) && speechClauses(source).some(clause => clause.trim().match(english)?.index === 0)) {
+      result = result.replace(chinese, (_match, last) => `${last}。`)
+    }
+  }
   if (complete && /[\p{Script=Han}\d]$/u.test(result)) result += /\?\s*$/.test(source) ? '？' : /!\s*$/.test(source) ? '！' : '。'
   return result
 }

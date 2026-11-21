@@ -1,4 +1,5 @@
 import { Converter } from './vendor/opencc-cn2t.mjs'
+import { currencyFigures } from './numbers.mjs'
 
 const convert = Converter({ from: 'cn', to: 'twp' })
 export function traditional(text) {
@@ -12,7 +13,7 @@ export function traditional(text) {
     .replace(/家庭醫生/g, '家庭醫師').replace(/藥劑師/g, '藥師').replace(/(?:將其|把它)展示給((?:我|你)的)?家庭醫師/g, '拿給$1家庭醫師看')
   if (/臺北|台北|Taipei/i.test(result)) result = result.replace(/台北捷運站/g, '臺北捷運站').replace(/(?:Taipei|台北|臺北)\s*(?:subway|metro)(\s+station)?/gi, (_all, station) => `臺北捷運${station ? '站' : ''}`)
   if (/服用/.test(result)) result = result.replace(/([一二兩三四五六七八九十\d]+)[粒片](?=[，。；、\s]|$)/g, '$1顆')
-  return result
+  return currencyFigures(result).replace(/[\u200B\uFEFF]/g, '')
 }
 
 export function translationBuffer(emit) {

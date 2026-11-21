@@ -13,12 +13,13 @@ import { unresolvedTranslations } from './recovery.mjs'
 import { createTranslationQueue } from './translation-queue.mjs'
 import { formatTranscript, waitForTranslations } from './export.mjs'
 import { startServiceWorker } from './pwa.mjs'
+import { recognitionWarnings } from './numbers.mjs'
 import '@fontsource/noto-sans-tc/400.css'
 import './style.css'
 import './accessibility.css'
 
-type Segment = { id: string; en: string; zh: string; timestamp: number; confidence?: number; forced?: boolean; provisional?: boolean; settled?: boolean; spoken?: boolean; numericWarnings?: string[]; retryable?: boolean; translation?: { source: string; text: string }; status: 'pending' | 'translating' | 'done' | 'error' }
-type SpeechMetadata = Pick<Segment, 'confidence' | 'forced' | 'provisional' | 'settled' | 'spoken' | 'numericWarnings'>
+type Segment = { id: string; en: string; zh: string; timestamp: number; confidence?: number; forced?: boolean; provisional?: boolean; settled?: boolean; spoken?: boolean; numericWarnings?: string[]; numericAlternatives?: number[][]; retryable?: boolean; translation?: { source: string; text: string }; status: 'pending' | 'translating' | 'done' | 'error' }
+type SpeechMetadata = Pick<Segment, 'confidence' | 'forced' | 'provisional' | 'settled' | 'spoken' | 'numericWarnings' | 'numericAlternatives'>
 type Session = { id: string; timestamp: number; segments: Segment[] }
 type Recognition = { start(): void; stop(): void }
 type Translator = { translate(text: string): Promise<string> }
@@ -34,8 +35,7 @@ function languageText(node: React.ReactNode): React.ReactNode {
   return node.props.children === undefined ? node : React.cloneElement(node, {}, languageText(node.props.children))
 }
 function warnings(segment: Segment, context: { en: string; zh: string }[] = []) {
-  const labels: Record<string, string> = { alternatives: '數字候選不一致 / numeric alternatives disagree', interim: '辨識數字曾變動或遺漏 / recognized figures changed or disappeared', boundary: '數字跨越收音中斷 / figures cross a recognition boundary' }
-  const result = (segment.numericWarnings || []).map(reason => labels[reason]).filter(Boolean)
+  const result = recognitionWarnings(segment)
   if (segment.status === 'done' && numericMismatch(segment.en, segment.zh)) result.push('數字可能不符 / figures may not match')
   if (segment.zh && segment.status !== 'translating' && negationMismatch(segment.en, segment.zh)) result.push('否定詞可能遺漏或範圍不符 / negation may be missing or misplaced')
   if (segment.zh && segment.status !== 'translating') result.push(...medicalWarnings(segment.en, segment.zh, context))
@@ -95,14 +95,21 @@ function App() {
   useLayoutEffect(() => {
     const workspace = workspaceElement.current; const bar = bottomBarElement.current
     if (!workspace || !bar) return
+    const app = workspace.closest('.app')
+    let fixedHeight = 0
     const resize = () => {
       const panel = workspace.getBoundingClientRect(); const controls = bar.getBoundingClientRect()
-      if (matchMedia('(max-height: 600px)').matches) { workspace.style.height = 'auto'; return }
+      if (!app?.classList.contains('reading-flow')) fixedHeight = controls.height
+      const chrome = [...workspace.children].filter(child => child.matches('.toolbar, .sessionbar, .transcript-actions')).reduce((height, child) => height + child.getBoundingClientRect().height, 2)
+      const cramped = innerHeight - panel.top - scrollY - fixedHeight - chrome - 12 < 180
+      app?.classList.toggle('reading-flow', cramped)
+      if (cramped || matchMedia('(max-height: 600px)').matches) { workspace.style.height = 'auto'; return }
       const bottom = controls.left >= panel.right ? innerHeight : controls.top
       workspace.style.height = `${Math.max(180, bottom - panel.top - scrollY - 12)}px`
     }
     const observer = new ResizeObserver(resize)
     for (const element of [bar, document.querySelector('header'), document.querySelector('.heading')]) if (element) observer.observe(element)
+    for (const element of workspace.children) if (!element.classList.contains('subtitles')) observer.observe(element)
     window.addEventListener('resize', resize); resize()
     return () => { observer.disconnect(); window.removeEventListener('resize', resize) }
   }, [])

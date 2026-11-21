@@ -62,7 +62,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
   }
   const metadata = (s, start, end, saved = false) => {
     const final = s.finals.find(range => end <= range.end)
-    return { confidence: final?.confidence, provisional: !final || !!final.saved || unfinishedSpeech(slice(s.text, words(s.text), start, end)), forced: !!final?.saved || !final && saved, numericWarnings: [...new Set(s.risks.filter(r => r.start < end && r.end > start).map(r => r.reason))] }
+    return { confidence: final?.confidence, numericAlternatives: final?.alternatives || [], provisional: !final || !!final.saved || unfinishedSpeech(slice(s.text, words(s.text), start, end)), forced: !!final?.saved || !final && saved, numericWarnings: [...new Set(s.risks.filter(r => r.start < end && r.end > start).map(r => r.reason))] }
   }
   const publishedWords = s => s.parts.reduce((sum, p) => sum + p.count, 0)
   function settle(s) {
@@ -76,7 +76,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
         part.settled = true
         const start = s.parts.slice(0, s.parts.indexOf(part)).reduce((sum, p) => sum + p.count, 0)
         revise(part.id, part.text, { ...metadata(s, start, start + part.count), settled: true })
-      }, 2000)
+      }, /[.!?]["')\]]?$/.test(text) && !/\b(?:Mr|Mrs|Ms|Dr|Prof|etc|U\.S|U\.K)\.$/i.test(text) ? 750 : 2000)
       part.settleTimer = timer; timers.add(timer)
     }
   }
@@ -113,7 +113,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
       const accepted = meta.provisional && !extended ? part.text : replacement
       const settled = part.settled && part.text === accepted && !meta.provisional
       if (part.text !== accepted || part.provisional !== meta.provisional) { clearTimeout(part.settleTimer); timers.delete(part.settleTimer); part.settleTimer = undefined }
-      if ((!meta.provisional && matching < end) || part.text !== accepted || part.provisional !== meta.provisional || part.forced !== meta.forced || part.confidence !== meta.confidence || part.settled !== settled || part.numericWarnings?.join() !== meta.numericWarnings.join()) revise(part.id, accepted, { ...meta, settled })
+      if ((!meta.provisional && matching < end) || part.text !== accepted || part.provisional !== meta.provisional || part.forced !== meta.forced || part.confidence !== meta.confidence || part.settled !== settled || part.numericWarnings?.join() !== meta.numericWarnings.join() || JSON.stringify(part.numericAlternatives) !== JSON.stringify(meta.numericAlternatives)) revise(part.id, accepted, { ...meta, settled })
       Object.assign(part, { text: accepted, count: words(accepted).length, ...meta, settled })
       offset += part.count
     }
@@ -177,7 +177,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
       count += words(row.text).length
       if (!row.final) break
       if (finals.length && !finals.at(-1).saved && unfinishedSpeech(previousFinal) && !row.saved) finals.pop()
-      finals.push({ end: count, confidence: Number.isFinite(row.confidence) ? row.confidence : undefined, saved: row.saved })
+      finals.push({ end: count, confidence: Number.isFinite(row.confidence) ? row.confidence : undefined, saved: row.saved, alternatives: row.alternatives.map(numericValues).filter(values => values.length && values.join() !== numericValues(row.text).join()) })
       previousFinal = row.text
     }
     const previous = target.text
