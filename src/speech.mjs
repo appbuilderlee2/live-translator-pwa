@@ -1,9 +1,14 @@
 import { numericValues, splitText, unfinishedSpeech, sameRecognizedSource } from './transcript.mjs'
+import { speechEvidence } from './diagnostics.mjs'
 
 const words = text => [...text.matchAll(/\S+/g)]
 const normalized = text => words(text).map(w => w[0].toLowerCase().replace(/[^\p{L}\p{N}]/gu, ''))
 const filler = text => /^(?:a|an|the|um|uh|er|ah|and|or|but|to|of|in|on|at|for|with|is|are|was|were|be|been|can)$/i.test(normalized(text).join(' '))
 const slice = (text, tokens, start, end) => end > start ? text.slice(tokens[start].index, tokens[end - 1].index + tokens[end - 1][0].length) : ''
+function phraseBoundary(text, tokens, start, end, limit = tokens.length) {
+  while (end < limit && end - start < 40 && (unfinishedSpeech(slice(text, tokens, start, end)) || /\b(?:a|an|the)\s+better$/i.test(slice(text, tokens, start, end)))) end++
+  return end
+}
 function sentences(text) {
   return text.split(/(?<=[.!?])\s+/).flatMap(s => splitText(s)).flatMap(s => {
     const tokens = words(s)
@@ -12,6 +17,7 @@ function sentences(text) {
     for (let start = 0; start < tokens.length;) {
       let end = Math.min(start + 30, tokens.length)
       if (end < tokens.length && /^please[,;:]?$/i.test(tokens[end - 1][0])) end--
+      end = phraseBoundary(s, tokens, start, end)
       chunks.push(slice(s, tokens, start, end)); start = end
     }
     return chunks
@@ -26,7 +32,8 @@ function related(left, right) {
   const shared = a.filter(word => { const index = remaining.indexOf(word); if (index < 0) return false; remaining.splice(index, 1); return true }).length
   return shared >= Math.min(a.length, b.length) * .6
 }
-function session() { return { text: '', rows: [], retained: [], parts: [], finals: [], committedCharacters: 0, timer: undefined, awaitingFinal: false, flushed: false, observations: [], risks: [], afterRestart: false } }
+let sessionId = 0
+function session() { return { id: ++sessionId, text: '', rows: [], retained: [], parts: [], finals: [], committedCharacters: 0, timer: undefined, awaitingFinal: false, flushed: false, observations: [], risks: [], afterRestart: false } }
 function trackRows(s, incoming) {
   const first = s.rows.find(row => !row.final)?.index
   const before = normalized(s.rows.filter(row => row.index >= first).map(row => row.text).join(' ')).join(' ')
@@ -70,7 +77,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
   const metadata = (s, start, end, saved = false) => {
     const final = s.finals.find(range => end <= range.end)
     const uncertain = !final || !!final.saved
-    return { confidence: final?.confidence, numericAlternatives: final?.alternatives || [], unconfirmed: !!s.terminal && uncertain, provisional: !s.terminal && uncertain || !s.flushed && end === words(s.text).length && unfinishedSpeech(slice(s.text, words(s.text), start, end)), forced: !s.terminal && (!!final?.saved || !final && saved), numericWarnings: [...new Set(s.risks.filter(r => r.start < end && r.end > start).map(r => r.reason))] }
+    return { ...speechEvidence(s, start, end), confidence: final?.confidence, numericAlternatives: final?.alternatives || [], unconfirmed: !!s.terminal && uncertain, provisional: !s.terminal && uncertain || !s.flushed && end === words(s.text).length && unfinishedSpeech(slice(s.text, words(s.text), start, end)), forced: !s.terminal && (!!final?.saved || !final && saved), numericWarnings: [...new Set(s.risks.filter(r => r.start < end && r.end > start).map(r => r.reason))] }
   }
   const publishedWords = s => s.parts.reduce((sum, p) => sum + p.count, 0)
   function settle(s) {
@@ -116,6 +123,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
         if (completed && words(completed).length <= 40) end = offset + words(completed).length
       }
       if (end > offset && end < tokens.length && /^please[,;:]?$/i.test(tokens[end - 1][0])) end--
+      if (part.provisional && final && !final.saved) end = phraseBoundary(text, tokens, offset, end, final.end)
       const replacement = slice(text, tokens, offset, end)
       const meta = metadata(s, offset, end, part.forced)
       const extended = final?.saved && normalized(replacement).slice(0, part.count).join() === normalized(part.text).join()
