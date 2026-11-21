@@ -96,7 +96,7 @@ function App() {
     if (!workspace || !bar) return
     const resize = () => {
       const panel = workspace.getBoundingClientRect(); const controls = bar.getBoundingClientRect()
-      if (matchMedia('(max-width: 720px) and (max-height: 500px)').matches) { workspace.style.height = 'auto'; return }
+      if (matchMedia('(max-height: 600px)').matches) { workspace.style.height = 'auto'; return }
       const bottom = controls.left >= panel.right ? innerHeight : controls.top
       workspace.style.height = `${Math.max(180, bottom - panel.top - scrollY - 12)}px`
     }

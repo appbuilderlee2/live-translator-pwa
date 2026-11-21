@@ -20,4 +20,6 @@ Committed captions are processed oldest-first, with no server interim previews. 
 
 Failures are logged as sanitized JSON (provider, endpoint path, upstream status, latency, short body snippet). Do not expose the unauthenticated API to untrusted traffic without platform authentication/rate limits. Cooldowns are per server process/isolate, not a distributed deployment-wide quota.
 
+The Node server bounds each API request to 30 seconds, including receiving its body and streaming its response. A timeout before response headers returns retryable HTTP 503 `translation_timeout`; after headers, the incomplete stream is disconnected rather than falsely completed. Disconnects cancel the response source. Static GET/HEAD responses include their exact byte `Content-Length`; streaming translations remain chunked. These safeguards do not establish the cause of profile-specific legacy-worker reload stalls.
+
 Native Web Speech cannot buffer audio across restarts. The app restarts immediately from `onend` on normal ends and the first network failure, but cannot eliminate browser/service audio gaps. Verify important figures and keep an independent recording when completeness is essential.

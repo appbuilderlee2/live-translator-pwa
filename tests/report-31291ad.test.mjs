@@ -12,7 +12,7 @@ import { networkTranslation } from '../src/network.mjs'
 const flush = async () => { for (let i = 0; i < 100; i++) await Promise.resolve() }
 const signal = () => new AbortController().signal
 
-function queueHarness(t) {
+function queueHarness(t, translation = '測試譯文。') {
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: 0 })
   const captions = new Map(); const requests = []; let queue; let id = 0
   const original = fetch; let inFlight = 0; let maximum = 0
@@ -23,7 +23,7 @@ function queueHarness(t) {
     assert.ok(!body.preview)
     maximum = Math.max(maximum, ++inFlight)
     await Promise.resolve(); inFlight--
-    return new Response(body.text.includes('blood pressure') ? '今天早上我的血壓是140/90。' : body.text.includes('did not help') ? '藥物沒有幫助。' : '測試譯文。')
+    return new Response(body.text.includes('blood pressure') ? '今天早上我的血壓是140/90。' : body.text.includes('did not help') ? '藥物沒有幫助。' : translation)
   }
   const storage = new Map()
   const persisted = { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) }
@@ -58,6 +58,31 @@ for (const gap of [7220, 5600]) test(`edge report: provisional/full transition $
   assert.equal(h.captions.size, 1); assert.equal(h.requests.length, 1)
   assert.equal(h.requests[0].en, full); assert.equal(h.requests[0].provisional, false)
   console.log(`Edge report-derived ${gap}ms transition: captions 1; requests 1; provisional 0; reload/retry extra 0`)
+})
+
+for (const prematureFinal of [false, true]) test(`lecture caption 50: ${prematureFinal ? 'premature final' : 'interim'} ending in to never dispatches before completion`, async t => {
+  const h = queueHarness(t, '這不是失敗，而是提出更好問題的理由。')
+  const partial = 'conditions the same recording result carefully makes the experiment easier to repeat a surprising result is not a failure it is a reason to'
+  const full = `${partial} ask a better question this is the end of section 24`
+  const rec = { start() {}, stop() {} }
+  const controller = createSpeechController(rec, { commit: h.commit, revise: h.revise, preview() {}, state() {}, message() {} })
+  t.after(() => controller.dispose()); controller.start()
+  const emit = (text, isFinal) => rec.onresult({ results: [Object.assign([{ transcript: text, confidence: .99 }], { isFinal })] })
+  emit(partial, prematureFinal)
+  await h.advance(1200)
+  assert.equal(h.requests.length, 0)
+  await h.advance(4447)
+  assert.equal(h.requests.length, 0)
+  emit(full, true)
+  await h.advance(1999)
+  assert.equal(h.requests.length, 0)
+  await h.advance(1)
+  h.retry(); h.reload(); await h.advance(20000)
+  assert.equal(h.captions.size, 1)
+  assert.equal(h.requests.length, 1)
+  assert.equal(h.requests[0].en, full)
+  assert.equal(h.requests[0].provisional, false)
+  console.log(`Lecture caption50 ${prematureFinal ? 'premature-final' : 'interim'} reconstruction: pre-final 0; settled full-source 1; reload/retry extra 0`)
 })
 
 test('elderly report: seven duplicate-pair schedules plus thirteen final-only controls make twenty requests', async t => {

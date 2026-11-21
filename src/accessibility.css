@@ -159,9 +159,10 @@ header { height: 64px; }
   .segment { padding-block: 10px; }
   .english { margin: 4px 0; }
 }
-@media (max-width: 720px) and (max-height: 500px) {
+@media (max-height: 600px) {
+  header, .heading { display: none; }
   .app { padding: 8px 12px 24px; }
-  .workspace { height: auto; min-height: 0; }
+  .workspace, .workspace:has(.history) { display: flex; height: auto; min-height: 0; }
   .subtitles { flex: none; height: 180px; min-height: 180px; }
   .bottom-bar { position: static; transform: none; width: 100%; max-width: none; margin-top: 12px; padding: 10px; overflow: visible; }
   .bottom-bar .controls { flex-direction: row; flex-wrap: wrap; justify-content: space-between; }
