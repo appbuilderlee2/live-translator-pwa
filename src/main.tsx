@@ -4,7 +4,7 @@ import { negationMismatch } from '../shared/negation.mjs'
 import { medicalWarnings } from '../shared/medical.mjs'
 import { translateWithFallback } from './local.mjs'
 import { networkTranslation } from './network.mjs'
-import { numericMismatch, splitText, recoverSegment, retryableSegments, previousContext, translationReady, reviseRecognizedSegment } from './transcript.mjs'
+import { numericMismatch, splitText, recoverSegment, retryableSegments, previousContext, translationReady, reviseRecognizedSegment, sameRecognizedSource } from './transcript.mjs'
 import { captionState } from './translation-state.mjs'
 import { createSpeechController } from './speech.mjs'
 import { speakTranslation } from './voice.mjs'
@@ -18,8 +18,8 @@ import '@fontsource/noto-sans-tc/400.css'
 import './style.css'
 import './accessibility.css'
 
-type Segment = { id: string; en: string; zh: string; timestamp: number; confidence?: number; forced?: boolean; provisional?: boolean; settled?: boolean; spoken?: boolean; numericWarnings?: string[]; numericAlternatives?: number[][]; retryable?: boolean; translation?: { source: string; text: string }; status: 'pending' | 'translating' | 'done' | 'error' }
-type SpeechMetadata = Pick<Segment, 'confidence' | 'forced' | 'provisional' | 'settled' | 'spoken' | 'numericWarnings' | 'numericAlternatives'>
+type Segment = { id: string; en: string; zh: string; timestamp: number; confidence?: number; forced?: boolean; provisional?: boolean; unconfirmed?: boolean; settled?: boolean; spoken?: boolean; numericWarnings?: string[]; numericAlternatives?: number[][]; retryable?: boolean; translation?: { source: string; text: string }; status: 'pending' | 'translating' | 'done' | 'error' }
+type SpeechMetadata = Pick<Segment, 'confidence' | 'forced' | 'provisional' | 'unconfirmed' | 'settled' | 'spoken' | 'numericWarnings' | 'numericAlternatives'>
 type Session = { id: string; timestamp: number; segments: Segment[] }
 type Recognition = { start(): void; stop(): void }
 type Translator = { translate(text: string): Promise<string> }
@@ -143,7 +143,7 @@ function App() {
     if (active.current.has(segment.id) || !translationReady(segment)) return
     const controller = new AbortController(); active.current.set(segment.id, controller)
     const update = (patch: Partial<Segment>) => {
-      const apply = (items: Segment[]) => items.map(s => s.id === segment.id && s.en === segment.en && translationReady(s) ? { ...s, ...patch } : s)
+      const apply = (items: Segment[]) => items.map(s => s.id === segment.id && sameRecognizedSource(s.en, segment.en) && translationReady(s) ? { ...s, ...patch } : s)
       changeSegments(apply)
       changeHistory(items => items.map(session => ({ ...session, segments: apply(session.segments) })))
     }
@@ -167,7 +167,7 @@ function App() {
   }
   function reviseSpeech(id: string, en: string, metadata: SpeechMetadata) {
     const previous = [...segmentsRef.current, ...historyRef.current.flatMap(s => s.segments)].find(s => s.id === id)
-    if (previous?.en !== en || !translationReady(metadata)) active.current.get(id)?.abort()
+    if (!previous || !sameRecognizedSource(previous.en, en) || !translationReady(metadata)) active.current.get(id)?.abort()
     const apply = (items: Segment[]) => items.flatMap(s => s.id !== id ? [s] : !en ? [] : [reviseRecognizedSegment(s, en, metadata) as Segment])
     changeSegments(apply); changeHistory(items => items.map(s => ({ ...s, segments: apply(s.segments) })))
     const segment = [...segmentsRef.current, ...historyRef.current.flatMap(s => s.segments)].find(s => s.id === id)
@@ -249,7 +249,7 @@ function App() {
           <div ref={transcriptContent}>
           {!shown.length && !interim && <div className="empty"><div className="wave" aria-hidden="true">{[14, 26, 40, 22, 50, 32, 18, 36, 24].map((h, i) => <i key={i} style={{ height: h }} />)}</div><h2>{micState === 'requesting' ? '等待麥克風授權 / Requesting microphone…' : mic ? '已開始收音，請說話。You’re on. Say hello.' : '從一句話，開始理解。Start a conversation.'}</h2><p>{micState === 'requesting' ? '請在瀏覽器提示中選擇「允許」。Allow microphone access in your browser.' : mic ? '英文與中文翻譯將顯示在這裡。Your words and translation appear here.' : '按麥克風並允許權限，或在下方輸入英文。\nTap the microphone and allow access, or type English below.'}</p><span className="empty-tag">英文 ENGLISH <span>→</span> 繁體中文</span></div>}
           {shown.map((s, index) => { const state = captionState(s, online, providerState); return <article className="segment" key={s.id}><div className="segment-meta"><span>{String(index + 1).padStart(2, '0')}</span><time>{new Date(s.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time><span>{state.label}</span></div>
-            <div className="quality">{!s.provisional && !s.forced && s.confidence !== undefined && <span>辨識信心 / Confidence: {Math.round(s.confidence * 100)}%</span>}{s.forced && <span>暫存語音，尚未收到最終辨識 / Saved speech; final recognition unavailable</span>}{warnings(s, shown.slice(Math.max(0, index - 2), index)).length > 0 && <span className="check">⚠ 請核對 Check: {warnings(s, shown.slice(Math.max(0, index - 2), index)).join('；')}</span>}</div>
+            <div className="quality">{!s.provisional && !s.forced && !s.unconfirmed && s.confidence !== undefined && <span>辨識信心 / Confidence: {Math.round(s.confidence * 100)}%</span>}{s.unconfirmed && <span role="note"><span lang="zh-Hant-TW">辨識未確認</span> / <span lang="en">Unconfirmed recognition</span></span>}{s.forced && <span>暫存語音，尚未收到最終辨識 / Saved speech; final recognition unavailable</span>}{warnings(s, shown.slice(Math.max(0, index - 2), index)).length > 0 && <span className="check">⚠ 請核對 Check: {warnings(s, shown.slice(Math.max(0, index - 2), index)).join('；')}</span>}</div>
             <p className="english" lang="en">{s.en}</p>{translationReady(s) && <><span className="translation-replay"><button className="chinese" lang="zh-TW" aria-label={`朗讀譯文 / Read translation: ${s.zh}`} aria-describedby={`replay-${s.id}`} onClick={() => speak(s.zh)} disabled={!s.zh}>{s.zh || state.placeholder}<span> ↗</span></button><span className="translation-tooltip" id={`replay-${s.id}`} role="tooltip" lang="zh-Hant-TW">朗讀譯文 / Replay translation</span></span>{state.manualRetry && <button className="retry" onClick={() => void run(s)}>↻ 重新翻譯 / Retry translation</button>}</>}</article>})}
           {interim && !selected && <article className="segment preview"><div className="segment-meta">即時預覽 / LIVE PREVIEW</div><p className="english" lang="en">{interim}</p></article>}
           </div>

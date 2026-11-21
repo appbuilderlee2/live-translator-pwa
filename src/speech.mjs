@@ -1,4 +1,4 @@
-import { numericValues, splitText, unfinishedSpeech } from './transcript.mjs'
+import { numericValues, splitText, unfinishedSpeech, sameRecognizedSource } from './transcript.mjs'
 
 const words = text => [...text.matchAll(/\S+/g)]
 const normalized = text => words(text).map(w => w[0].toLowerCase().replace(/[^\p{L}\p{N}]/gu, ''))
@@ -61,6 +61,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
   let wanted = false; let running = false; let current = session(); let closing; let pause
   let retryTimer; let failures = 0; let failed = false; let immediateRetry = false
   const timers = new Set()
+  const endedSessions = new Set()
   const later = fn => {
     const timer = setTimeout(() => { timers.delete(timer); fn() }, 250)
     timers.add(timer)
@@ -68,7 +69,8 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
   }
   const metadata = (s, start, end, saved = false) => {
     const final = s.finals.find(range => end <= range.end)
-    return { confidence: final?.confidence, numericAlternatives: final?.alternatives || [], provisional: !final || !!final.saved || !s.flushed && end === words(s.text).length && unfinishedSpeech(slice(s.text, words(s.text), start, end)), forced: !!final?.saved || !final && saved, numericWarnings: [...new Set(s.risks.filter(r => r.start < end && r.end > start).map(r => r.reason))] }
+    const uncertain = !final || !!final.saved
+    return { confidence: final?.confidence, numericAlternatives: final?.alternatives || [], unconfirmed: !!s.terminal && uncertain, provisional: !s.terminal && uncertain || !s.flushed && end === words(s.text).length && unfinishedSpeech(slice(s.text, words(s.text), start, end)), forced: !s.terminal && (!!final?.saved || !final && saved), numericWarnings: [...new Set(s.risks.filter(r => r.start < end && r.end > start).map(r => r.reason))] }
   }
   const publishedWords = s => s.parts.reduce((sum, p) => sum + p.count, 0)
   function settle(s) {
@@ -118,9 +120,9 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
       const meta = metadata(s, offset, end, part.forced)
       const extended = final?.saved && normalized(replacement).slice(0, part.count).join() === normalized(part.text).join()
       const accepted = meta.provisional && !extended ? part.text : replacement
-      const settled = part.settled && part.text === accepted && !meta.provisional
+      const settled = part.settled && sameRecognizedSource(part.text, accepted) && !meta.provisional
       if (part.text !== accepted || part.provisional !== meta.provisional) { clearTimeout(part.settleTimer); timers.delete(part.settleTimer); part.settleTimer = undefined }
-      if ((!meta.provisional && matching < end) || part.text !== accepted || part.provisional !== meta.provisional || part.forced !== meta.forced || part.confidence !== meta.confidence || part.settled !== settled || part.numericWarnings?.join() !== meta.numericWarnings.join() || JSON.stringify(part.numericAlternatives) !== JSON.stringify(meta.numericAlternatives)) revise(part.id, accepted, { ...meta, settled })
+      if ((!meta.provisional && matching < end) || part.text !== accepted || part.provisional !== meta.provisional || part.forced !== meta.forced || part.unconfirmed !== meta.unconfirmed || part.confidence !== meta.confidence || part.settled !== settled || part.numericWarnings?.join() !== meta.numericWarnings.join() || JSON.stringify(part.numericAlternatives) !== JSON.stringify(meta.numericAlternatives)) revise(part.id, accepted, { ...meta, settled })
       Object.assign(part, { text: accepted, count: words(accepted).length, ...meta, settled })
       offset += part.count
     }
@@ -160,10 +162,26 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
     reconcile(s, s.text, s.finals)
     const start = publishedWords(s); const end = words(s.text).length
     if (end > start) publish(s, start, end, true)
+    if (s.terminal) {
+      let offset = 0
+      for (const part of s.parts) {
+        if (!part.settled) {
+          clearTimeout(part.settleTimer); timers.delete(part.settleTimer); part.settleTimer = undefined
+          part.settled = true
+          revise(part.id, part.text, { ...metadata(s, offset, offset + part.count), settled: true })
+        }
+        offset += part.count
+      }
+    }
     for (const part of s.parts) if (part.provisional && !part.forced) {
       part.forced = true; revise(part.id, part.text, { confidence: undefined, provisional: true, forced: true })
     }
     settle(s)
+  }
+  function endListening() {
+    const sessions = [...endedSessions, current]
+    for (const s of sessions) s.terminal = true
+    later(() => { for (const s of sessions) flush(s) })
   }
   function previewCurrent() { preview(current.text.slice(current.committedCharacters).trim()) }
   rec.onstart = rec.onaudiostart = () => { failed = false; clearTimeout(retryTimer); retryTimer = undefined; if (wanted) { state('listening'); message('') } }
@@ -176,7 +194,11 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
     const candidate = normalized(incoming.map(r => r.text).join(' ')); const old = normalized(closing?.text || '')
     const overlap = candidate.slice(0, 10).filter(word => old.slice(0, 10).includes(word)).length
     const matchesClosing = closing?.awaitingFinal && incoming[0].final && ((!closing.flushed && !current.text) || overlap >= Math.min(candidate.length, old.length, 10) * .6)
-    const target = matchesClosing ? closing : current
+    const late = !wanted && incoming[0].final ? [...endedSessions].reverse().find(s => {
+      const previous = normalized(s.text)
+      return s.awaitingFinal && previous.length && candidate.slice(0, 10).filter(word => previous.slice(0, 10).includes(word)).length >= Math.min(candidate.length, previous.length, 10) * .6
+    }) : undefined
+    const target = matchesClosing ? closing : late || current
     let rows = trackRows(target, incoming).filter(row => !row.saved || !filler(row.text))
     if (filler(rows.filter(row => !row.final).map(row => row.text).join(' '))) rows = rows.filter(row => row.final)
     const text = rows.map(r => r.text).join(' ')
@@ -213,7 +235,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
     }
     if (target.afterRestart && numericValues(rows[0]?.text || '').length) risk(target, 0, words(rows[0].text).length, 'boundary')
     reconcile(target, text, finals)
-    if (target === closing) { clearTimeout(target.timer); timers.delete(target.timer); target.timer = later(() => flush(target)); return }
+    if (target === closing || target === late) { clearTimeout(target.timer); timers.delete(target.timer); target.timer = later(() => flush(target)); return }
     if (text !== previous) { clearTimeout(pause); pause = setTimeout(() => { stable(current, true); previewCurrent() }, 1200) }
     if (words(text).length - publishedWords(current) > 25) stable(current, false, previous)
     previewCurrent()
@@ -221,6 +243,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
   rec.onerror = event => {
     if (['not-allowed', 'service-not-allowed'].includes(event.error)) {
       wanted = false; state('idle'); message(`無法使用麥克風（${event.error}）。請依下方「麥克風設定說明」允許權限，或改用英文輸入。Microphone ${event.error}. Follow Microphone help below to allow access, or type English.`)
+      endListening()
     } else if (['audio-capture', 'network'].includes(event.error)) {
       failed = true
       message(event.error === 'network' ? '麥克風語音服務網路錯誤（network），正在重試。請檢查網路或按「重試麥克風」。Microphone speech-service network error (network). Retrying; check your connection or Retry mic.' : '麥克風擷取失敗（audio-capture），正在重試。請檢查麥克風連線與權限，或按「重試麥克風」。Microphone capture error (audio-capture). Retrying; check microphone connection and permissions or Retry mic.')
@@ -240,12 +263,13 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
     }
     if (closing && closing !== ended) flush(closing)
     closing = ended
+    endedSessions.add(ended)
     ended.timer = later(() => flush(ended))
     current = session(); current.afterRestart = ended.awaitingFinal; preview('')
     if (wanted && failed && immediateRetry) { immediateRetry = false; failures++; startRecognition() }
     else if (wanted && failed) scheduleRetry()
     else if (wanted) startRecognition()
-    else state('idle')
+    else { state('idle'); endListening() }
   }
   function startRecognition() {
     try { state('requesting'); running = true; rec.start() } catch { running = false; failed = true; message('無法啟動麥克風，正在重試。請檢查權限或按「重試麥克風」。Could not start microphone. Retrying; check permissions or Retry mic.'); scheduleRetry() }
@@ -259,6 +283,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
     start() { wanted = true; failed = false; failures = 0; immediateRetry = false; clearTimeout(retryTimer); retryTimer = undefined; message(''); startRecognition() },
     stop() {
       wanted = false; clearTimeout(pause); clearTimeout(retryTimer); retryTimer = undefined; state('idle')
+      endListening()
       const stopped = current
       stopped.timer = later(() => flush(stopped))
       if (running) { try { rec.stop() } catch { running = false; flush(stopped) } }

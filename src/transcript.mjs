@@ -10,13 +10,14 @@ export function translationReady(segment) {
 }
 
 const sourceKey = text => text.trim().replace(/\s+/g, ' ').replace(/(?<!\.)\.$/, '')
+export const sameRecognizedSource = (left, right) => sourceKey(left) === sourceKey(right)
 
 export function reviseRecognizedSegment(segment, en, metadata) {
   const translation = segment.translation || (segment.status === 'done' && translationReady(segment) && segment.zh ? { source: segment.en, text: segment.zh } : undefined)
   const revised = { ...segment, en, ...metadata, translation }
   if (!translationReady(revised)) return { ...revised, zh: '', status: 'pending' }
   if (translation && sourceKey(translation.source) === sourceKey(en)) return { ...revised, zh: translation.text, status: 'done' }
-  return segment.en !== en ? { ...revised, zh: '', status: 'pending' } : revised
+  return !sameRecognizedSource(segment.en, en) ? { ...revised, zh: '', status: 'pending' } : revised
 }
 
 export function splitText(text, limit = 2000) {
