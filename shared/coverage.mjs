@@ -1,4 +1,8 @@
 const seating = [/\b(?:sit|sits|sitting|seated|seating|seats?)\b/i, /坐|座位|就座|落座/]
+export function seatingSource(text) {
+  return text.replace(/\b(places?) to sit(?: down)?(?=\s+(?:near|at|in|on|by)\b|\s*[.!?,;:]|$)/gi, (_all, place) => /^places$/i.test(place) ? 'seats' : 'seat')
+}
+
 const concepts = [
   [/\blibrar(?:y|ies)\b/i, /圖書館|图书馆/],
   [/\bpark\b/i, /公園|公园/],

@@ -8,7 +8,7 @@ import { unresolvedTranslations } from '../src/recovery.mjs'
 const flush = async () => { for (let i = 0; i < 100; i++) await Promise.resolve() }
 const request = text => new Request('http://localhost/api/translate', { method: 'POST', body: JSON.stringify({ text }) })
 
-test('a bad translation is deferred without permanently blocking later captions', async t => {
+test('a bad translation retries before any newer captions can finish', async t => {
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: 100000 })
   const order = []; let badAttempts = 0
   const segments = new Map([1, 2, 3].map(id => [id, { id, en: `caption ${id}`, timestamp: id, status: 'pending' }]))
@@ -20,7 +20,7 @@ test('a bad translation is deferred without permanently blocking later captions'
   for (const id of segments.keys()) queue.enqueue(id)
   for (let i = 0; i < 60 && order.length < 3; i++) { t.mock.timers.tick(1000); await flush() }
   assert.equal(order.length, 3); assert.equal(new Set(order).size, 3)
-  assert.ok(order.indexOf(2) < order.indexOf(1))
+  assert.deepEqual(order, [1, 2, 3])
 })
 
 test('stalled successful response bodies log a typed invalid-provider failure, not a numeric DOMException code', async t => {

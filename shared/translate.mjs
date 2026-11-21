@@ -4,7 +4,7 @@ import { withTimeout } from './retry.mjs'
 import { createProviderGateway, providerResponse } from './provider.mjs'
 import { negationMismatch, normalizeNegations } from './negation.mjs'
 import { medicalPrompt, normalizeMedical, protectMedical, medicalTranslation, medicalWarnings } from './medical.mjs'
-import { seatingMismatch } from './coverage.mjs'
+import { seatingMismatch, seatingSource } from './coverage.mjs'
 
 const headers = { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }
 export function createTranslateHandler(options = {}) {
@@ -35,7 +35,7 @@ return async function translateHandler(req) {
     gateway.check()
     if (!env.OPENAI_API_KEY) {
       const medical = protectMedical(currency.text, context)
-      const protectedText = protectNames(medical.text)
+      const protectedText = protectNames(seatingSource(medical.text))
       const result = await attempt(async signal => {
         const target = new URL(gateway.endpoint([env.GOOGLE_TRANSLATE_URL || 'https://translate.googleapis.com/translate_a/single', env.GOOGLE_TRANSLATE_FALLBACK_URL || 'https://translate.google.com/translate_a/single']))
         for (const [key, value] of Object.entries({ client: 'gtx', sl: 'en', tl: 'zh-TW', dt: 't', q: protectedText.text })) target.searchParams.set(key, value)
