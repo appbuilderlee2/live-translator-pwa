@@ -1,7 +1,9 @@
 export function slowWorkerNavigation(navigation) {
   if (!navigation) return false
+  if (navigation.workerMatchedSourceType === 'race-network-and-fetch-handler' || navigation.workerMatchedSourceType === 'network') return false
   return navigation.workerStart > 0 && navigation.fetchStart - navigation.workerStart > 3000 ||
-    navigation.responseStart > 0 && navigation.responseEnd - navigation.responseStart > 10000 &&
+    navigation.workerStart === 0 && navigation.responseStart > 0 && navigation.responseEnd - navigation.responseStart >= 85000 &&
+    navigation.responseEnd - navigation.responseStart <= 95000 &&
     navigation.encodedBodySize > 0 && navigation.encodedBodySize < 65536
 }
 
@@ -14,22 +16,23 @@ async function bounded(operation, timeout) {
   } finally { clearTimeout(timer) }
 }
 
-export async function registerServiceWorker({ serviceWorker, navigation, storage, now = Date.now(), timeout = 4000 }) {
+export async function registerServiceWorker({ serviceWorker, navigation, storage, timeout = 4000, build = new URL(import.meta.url).pathname.split('/').at(-1) }) {
   if (!serviceWorker) return 'unsupported'
   const options = { scope: '/', updateViaCache: 'none' }
   try {
     if (!slowWorkerNavigation(navigation)) {
+      const registration = serviceWorker.getRegistration ? await bounded(serviceWorker.getRegistration('/'), timeout) : null
+      if (registration?.active || registration?.installing || registration?.waiting) return 'existing'
       await bounded(serviceWorker.register('/sw.js', options), timeout)
       return 'registered'
     }
     try {
-      const last = Number(storage?.getItem('lt-sw-recovery-at'))
-      if (last > 0 && now - last >= 0 && now - last < 60000) return 'throttled'
-      storage?.setItem('lt-sw-recovery-at', String(now))
-    } catch {}
-    const registration = await bounded(Promise.resolve().then(() => serviceWorker.getRegistration('/')), timeout).catch(() => null)
-    try { if (registration) await bounded(registration.update(), timeout) } catch {}
-    await bounded(serviceWorker.register(`/sw.js?recovery=${now}`, options), timeout)
+      if (!storage) return 'failed'
+      const key = `lt-sw-recovery-build:${build}`
+      if (storage.getItem(key)) return 'throttled'
+      storage.setItem(key, 'attempted')
+    } catch { return 'failed' }
+    await bounded(serviceWorker.register(`/sw.js?recovery=${encodeURIComponent(build)}`, options), timeout)
     return 'recovered'
   } catch { return 'failed' }
 }
