@@ -5,7 +5,8 @@ const concepts = [
   [/\b(?:map|maps)\b/i, /地圖|地图/],
   [/\b(?:walking route|footpath)\b/i, /步行|走路|人行|步道/],
   [/\b(?:hurry|rushing)\b/i, /趕|赶|急|匆忙/],
-  [/\bstreet\b/i, /街|道路|路上/]
+  [/\bstreet\b/i, /街|道路|路上/],
+  [/\b(?:sit|sits|sitting|seated|seating|seats?)\b/i, /坐|座位|就座|落座/]
 ]
 
 export function semanticMismatch(source, translated) {

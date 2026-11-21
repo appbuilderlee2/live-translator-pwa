@@ -1,4 +1,5 @@
 import { traditional } from '../shared/traditional.mjs'
+import { readableChinese } from '../shared/phrasing.mjs'
 import { numericValues } from './numbers.mjs'
 export { numericValues } from './numbers.mjs'
 
@@ -6,6 +7,16 @@ export const unfinishedSpeech = text => /\b(?:am|is|are|was|were|be|been|being|t
 
 export function translationReady(segment) {
   return !segment.provisional && !segment.forced && segment.settled !== false
+}
+
+const sourceKey = text => text.trim().replace(/\s+/g, ' ').replace(/(?<!\.)\.$/, '')
+
+export function reviseRecognizedSegment(segment, en, metadata) {
+  const translation = segment.translation || (segment.status === 'done' && translationReady(segment) && segment.zh ? { source: segment.en, text: segment.zh } : undefined)
+  const revised = { ...segment, en, ...metadata, translation }
+  if (!translationReady(revised)) return { ...revised, zh: '', status: 'pending' }
+  if (translation && sourceKey(translation.source) === sourceKey(en)) return { ...revised, zh: translation.text, status: 'done' }
+  return segment.en !== en ? { ...revised, zh: '', status: 'pending' } : revised
 }
 
 export function splitText(text, limit = 2000) {
@@ -28,7 +39,7 @@ export function numericMismatch(en, zh) {
 export function recoverSegment(segment) {
   const recovered = { ...segment }
   if (!segment.provisional && !segment.forced && segment.settled === false && !unfinishedSpeech(segment.en)) recovered.settled = true
-  return { ...recovered, zh: translationReady(recovered) ? traditional(segment.zh || '') : '', status: !translationReady(recovered) || segment.status === 'translating' ? 'pending' : segment.status }
+  return { ...recovered, zh: translationReady(recovered) ? readableChinese(segment.en, traditional(segment.zh || '')) : '', status: !translationReady(recovered) || segment.status === 'translating' ? 'pending' : segment.status }
 }
 export function retryableSegments(current, history) {
   return [...current, ...history.flatMap(session => session.segments)].filter(s => s.status === 'pending' || s.status === 'error')

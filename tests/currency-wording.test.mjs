@@ -26,6 +26,41 @@ test('named currency matching uses an adjacent qualifier even after an earlier c
   assert.throws(() => protectCurrency('20 dollars').restore('20 美元'), /placeholder was lost/)
 })
 
+test('exact contextual report: neutral fees plus explicit USD normalize after every provider and client path', async t => {
+  const original = fetch; const key = process.env.OPENAI_API_KEY
+  t.after(() => { globalThis.fetch = original; if (key === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = key })
+  const input = 'The fee is $25. The extra charge is $12.50. The US dollar price is 20 US dollars.'
+  const answer = '費用為 25 __CURRENCY_UNIT__。 額外費用為 12.50 __CURRENCY_UNIT__。 美元價為 20 美元 元。'
+  const expected = '費用為 25 元。 額外費用為 12.50 元。 美元價為 20 美元。'
+  for (const spoken of [false, true]) {
+    const protectedSource = protectCurrency(currencySource(input, spoken)).text
+    assert.equal(protectedSource, 'The fee is 25 __CURRENCY_UNIT__. The extra charge is 12.50 __CURRENCY_UNIT__. The US dollar price is 20 US dollars.')
+    for (const provider of ['Google', 'OpenAI']) {
+      if (provider === 'Google') delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = 'test'
+      globalThis.fetch = async (url, options) => {
+        const source = provider === 'Google' ? new URL(url).searchParams.get('q') : JSON.parse(options.body).messages.at(-1).content
+        assert.equal(source, protectedSource)
+        return provider === 'Google' ? Response.json([[[answer]]]) : sse(answer)
+      }
+      const response = await translateHandler(new Request('http://localhost/api/translate', { method: 'POST', body: JSON.stringify({ text: input, spoken }) }))
+      assert.equal(response.status, 200); assert.equal(await response.text(), expected)
+    }
+    const chunks = []
+    assert.equal(await localTranslation({ translate: async source => {
+      chunks.push(source)
+      if (source.includes('extra charge')) return '額外費用為 12.50 __CURRENCY_UNIT__。'
+      if (source.includes('US dollar')) return '美元價為 20 美元 元。'
+      return '費用為 25 __CURRENCY_UNIT__。'
+    } }, input, signal(), [], { spoken }), expected)
+    assert.equal(chunks.length, 3)
+    globalThis.fetch = async () => new Response('費用為 25 元。 額外費用為 12.50 元。 美元價為 20 美元 元。')
+    const updates = []
+    assert.equal(await networkTranslation(input, signal(), text => updates.push(text), [], { spoken }), expected)
+    assert.equal(updates.at(-1), expected)
+    console.log(`Contextual USD/${spoken ? 'spoken' : 'typed'}: Google/OpenAI/local/client => ${expected}`)
+  }
+})
+
 test('Taiwan output cleans duplicated USD units and generic subway terms, including streamed phrases', () => {
   const input = '美元價為 20 美元 元。地铁站和地铁。'
   const expected = '美元價為 20 美元。捷運站和捷運。'

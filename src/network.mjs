@@ -1,5 +1,6 @@
 import { retryAfter, withTimeout } from '../shared/retry.mjs'
 import { traditional } from '../shared/traditional.mjs'
+import { readableChinese } from '../shared/phrasing.mjs'
 import { negationMismatch } from '../shared/negation.mjs'
 import { medicalTranslation, medicalWarnings } from '../shared/medical.mjs'
 
@@ -19,12 +20,14 @@ export async function networkTranslation(text, signal, update, context = [], opt
       while (true) {
         const { done, value } = await withTimeout(() => reader.read(), { signal, timeout: options.preview ? 1500 : 4500 })
         result += decoder.decode(value, { stream: !done }); signal.throwIfAborted()
-        if (result) update(medicalTranslation(text, traditional(result), context))
+        if (result) update(readableChinese(text, medicalTranslation(text, traditional(result), context), false))
         if (done) break
       }
     } catch (error) { void reader.cancel(error).catch(() => {}); throw error } finally { reader.releaseLock() }
     if (!result.trim()) throw Object.assign(new Error('未收到譯文，請重新翻譯。No translation received. Please retry.'), { code: 'translation_invalid' })
     if (negationMismatch(text, traditional(result))) throw Object.assign(new Error('否定詞可能遺漏或範圍不符 / Negation may be missing or misplaced'), { code: 'translation_invalid' })
     if (medicalWarnings(text, traditional(result), context).length) throw Object.assign(new Error('醫療用語可能誤譯 / Medical meaning may be mistranslated'), { code: 'translation_invalid' })
-    return medicalTranslation(text, traditional(result), context)
+    const translated = readableChinese(text, medicalTranslation(text, traditional(result), context))
+    update(translated)
+    return translated
 }

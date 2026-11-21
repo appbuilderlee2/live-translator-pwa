@@ -95,11 +95,12 @@ test('truncated, empty, or failed on-device results fall back to the server with
   globalThis.fetch = async (_url, options) => { requests.push(JSON.parse(options.body)); return new Response(full) }
   for (const output of [truncated, '', new Error('model failed')]) {
     const local = { async translate() { if (output instanceof Error) throw output; return output } }
-    assert.equal(await translateWithFallback(local, recognized, signal(), text => updates.push(text), [], { spoken: true }), full)
+    assert.equal(await translateWithFallback(local, recognized, signal(), text => updates.push(text), [], { spoken: true }), `${full}。`)
   }
   assert.equal(requests.length, 3)
   assert.ok(requests.every(body => body.text === recognized && body.spoken === true))
-  assert.ok(updates.every(text => text === full))
+  assert.ok(updates.every(text => text === full || text === `${full}。`))
+  assert.equal(updates.at(-1), `${full}。`)
 })
 
 test('valid on-device results stay local; aborts never start a server fallback', async () => {

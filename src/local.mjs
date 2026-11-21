@@ -4,6 +4,7 @@ import { negationMismatch } from '../shared/negation.mjs'
 import { createLimiter, withTimeout } from '../shared/retry.mjs'
 import { semanticMismatch } from '../shared/coverage.mjs'
 import { traditional } from '../shared/traditional.mjs'
+import { speechClauses, readableChinese } from '../shared/phrasing.mjs'
 import { numericMismatch, splitText } from './transcript.mjs'
 import { networkTranslation } from './network.mjs'
 
@@ -18,7 +19,7 @@ export function coverageMismatch(source, translated) {
 }
 
 export function localChunks(text) {
-  return text.split(/(?<=[.!?;])\s+|(?=\b(?:please|thank you|we need|we are not|we would rather|do not|don't)\b)/i).flatMap(clause => splitText(clause, 120)).filter(chunk => chunk.trim())
+  return speechClauses(text).flatMap(clause => splitText(clause, 120)).filter(chunk => chunk.trim())
 }
 
 const localLimited = createLimiter(1)
@@ -31,14 +32,16 @@ async function translateChunks(local, text, signal, context, options) {
   const currency = protectCurrency(normalizeBusiness(currencySource(text, options.spoken), context))
   const source = normalizeMedical(currency.text, context)
   const translated = []
-  for (const chunk of localChunks(source)) {
+  const chunks = localChunks(source)
+  for (const [index, chunk] of chunks.entries()) {
     const result = traditional(await withTimeout(attemptSignal => local.translate(chunk, { signal: attemptSignal }), { signal, timeout: options.preview ? 1200 : 2500 }))
     if (coverageMismatch(chunk, result)) throw new Error('On-device translation may be incomplete')
-    translated.push(result)
+    const boundary = /[.!?;]$/.test(chunk.trim()) || index + 1 < chunks.length && speechClauses(`${chunk} ${chunks[index + 1]}`).length > 1
+    translated.push(chunks.length > 1 && boundary && /[\p{Script=Han}\d]$/u.test(result) ? `${result}。` : result)
   }
   const result = medicalTranslation(text, traditional(currency.restore(translated.join(' '))), context)
   if (coverageMismatch(text, result) || negationMismatch(text, result) || medicalWarnings(text, result, context).length) throw new Error('On-device translation did not preserve meaning')
-  return result
+  return readableChinese(text, result)
 }
 
 export async function translateWithFallback(local, text, signal, update, context = [], options = {}, fallback = networkTranslation) {
