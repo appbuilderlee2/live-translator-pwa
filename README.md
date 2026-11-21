@@ -3,6 +3,12 @@
 A mobile-first, dark PWA for live English → Traditional Chinese (Taiwan) bilingual subtitles.
 
 ## Features
+- Chinese-first bilingual controls and recovery instructions, 44px action targets, persistent subtitle/interface size and voice/speed preferences, Taiwan Mandarin/Hong Kong Cantonese voice selection, and explicit missing-voice/playback errors.
+- Interim speech is preserved on recognition end; pause (1.2s), length (25 words) and age (5s) boundaries request finalization. Recognition confidence and conservative number-mismatch warnings help identify captions to check. They cannot detect every recognition error: a confidently wrong source number faithfully translated can still evade the warning. Verify critical figures with the speaker.
+- Business idiom normalization and protected capitalized multi-word names for Google; OpenAI receives the previous two committed English/Chinese segments in the same session for terminology context. Heuristic name detection and idiom normalization are not a substitute for human review. Bare “dollars” remains unspecified as 元 unless currency is explicit.
+- Every provider's output passes through OpenCC's Taiwan phrase conversion (`cn` → `twp`). A local Noto Sans TC font and system CJK fallbacks avoid depending on online font delivery.
+- Independent committed requests are never canceled by new submissions or saving a session. Only stale interim previews are aborted. Client retries interrupted requests once; the server retries transient upstream failures up to three attempts with short backoff and limits concurrent Google requests/OpenAI connection setup to two. Mid-stream failures retry the whole segment on the client.
+- Pending/failed work in current and saved sessions automatically resumes on load/reconnect and offers manual retry. History deletion has a seven-second Undo window. Long pasted text is split near sentence boundaries instead of truncated.
 - Continuous speech recognition, live debounced translation previews and streamed final translations. Text input is always available (Enter to send, Shift+Enter for a new line).
 - Chrome on-device Translator API first (`en` → `zh-Hant`), then a shared server API: OpenAI streaming if configured, otherwise the free Google Translate endpoint. The on-device model may need a first-time download and a user gesture; availability depends on Chrome and installed language models.
 - Offline app shell; without an available on-device model, segments stay pending and automatically retry when connection returns. On-device translation works offline once its model is downloaded. Speech recognition itself may require internet, even with on-device translation.
@@ -21,7 +27,9 @@ npm run dev
 ```
 Production: `npm run build && PORT=3000 npm start`. The Node server serves `dist/`, SPA fallbacks and `/api/translate`. Bind is 0.0.0.0; use HTTPS through a reverse proxy for remote microphone access. No database needed.
 
-`npm test` runs isolated API tests (no external services). `VITE_DISABLE_SW=1 npm run build` disables registration entirely. If you previously installed a service worker, unregister it in browser developer tools before testing the disabled build. Normal builds use generateSW precaching and auto-update.
+`npm test` runs isolated API, speech lifecycle, transcript safety, retry and voice tests (no external services). `VITE_DISABLE_SW=1 npm run build` disables registration entirely. If you previously installed a service worker, unregister it in browser developer tools before testing the disabled build. Normal builds use generateSW precaching and auto-update, including local CJK fonts.
+
+The production server is dependency-free: copy `server.mjs`, `shared/` (including `shared/vendor/`) and `dist/`, then run `node server.mjs` without `node_modules`. OpenCC 1.4.2's self-contained `cn2t` distribution and licenses are vendored for this purpose. After updating the pinned development package, regenerate with `node scripts/vendor-opencc.mjs` and commit the resulting files. Node 22+ is required for the timeout/abort APIs used by the shared handler.
 
 ## Vercel
 1. Import this repository into Vercel as a Vite project.

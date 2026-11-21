@@ -1,0 +1,76 @@
+body, .chinese, .decor { font-family: 'DM Sans', var(--cjk-font); }
+.segment, .history-row, .subtitles, .english, .chinese { min-width: 0; overflow-wrap: anywhere; }
+.subtitles { overflow-x: hidden; }
+.sessionbar small { color: #b4c6b8; font-size: 11px; }
+.segment-meta { color: #a5baa9; flex-wrap: wrap; }
+.quality { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; color: #a5baa9; margin-top: 10px; }
+.quality:empty { display: none; }
+.check { color: #ffe1a1; background: #483c22; border: 1px solid #8b713b; border-radius: 5px; padding: 4px 8px; }
+.input-hint { font-size: 12px; color: #c8d5c7; }
+.notifications { position: fixed; z-index: 30; top: 14px; right: 14px; max-width: min(600px, calc(100vw - 28px)); max-height: 45dvh; overflow: auto; display: grid; gap: 8px; }
+.quiet, .retry, .history button, .transcript-actions button, .notice button, .inputbox button, .chinese { min-width: 44px; min-height: 44px; }
+.transcript-actions button { padding: 8px 5px; }
+.history-row button:first-child { flex: 1; }
+.history-row button:last-child { padding-inline: 8px; }
+.fontcontrol input { min-height: 44px; }
+.speak-toggle { min-height: 44px; }
+.inputbox textarea { font-size: 16px; }
+.preferences { display: grid; grid-template-columns: 2fr 1fr; gap: 18px; padding: 16px 0; font-size: 14px; color: #c2d3c2; }
+.preferences label { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.preferences select { min-height: 44px; width: 100%; background: #1c2821; color: #e0f0d4; border: 1px solid #52674f; border-radius: 6px; padding: 8px; font: inherit; }
+.preferences .large-setting { flex-direction: row; align-items: center; grid-column: 1 / -1; min-height: 44px; }
+.large-setting input { width: 24px; height: 24px; accent-color: #c8ef99; }
+.mic-help { padding: 20px 0; font-size: 14px; color: #b8ccbb; line-height: 1.9; }
+.mic-help summary { cursor: pointer; min-height: 44px; }
+.mic-help li { margin-bottom: 14px; }
+.input-hint { line-height: 1.8; }
+.fontcontrol { gap: 10px; }
+.fontcontrol label { font-size: 12px; }
+.fontcontrol input { width: 100px; }
+.transcript-actions button, .quiet, .history button, .retry, .notice { font-size: 13px; }
+.transcript-actions > span { font-size: 12px; }
+.empty p { font-size: 14px; max-width: 90%; }
+.speak-toggle { font-size: 14px; }
+.speak-toggle small { font-size: 11px; display: block; letter-spacing: 0; color: #b4c6b8; }
+.large-ui button, .large-ui label, .large-ui small, .large-ui .notice, .large-ui .segment-meta, .large-ui .sessionbar, .large-ui p, .large-ui summary, .large-ui li, .large-ui footer, .large-ui .mic-group > span { font-size: max(16px, 1em); }
+.large-ui h1 { font-size: 36px; }
+.transcript-actions { align-items: center; }
+@media (max-width: 640px) {
+  .app { padding-bottom: 240px; }
+  .bottom-bar { position: fixed; z-index: 10; bottom: 0; left: 0; right: 0; padding: 8px 14px max(8px, env(safe-area-inset-bottom)); background: #101715f7; border-top: 1px solid #52674f; box-shadow: 0 -8px 24px #0004; }
+  .bottom-bar .inputbox { margin: 0; padding-block: 5px; }
+  .bottom-bar textarea { resize: none; max-height: 120px; }
+  .bottom-bar .input-hint { font-size: 10px; margin: 4px 0; }
+  .bottom-bar .controls { flex-wrap: nowrap; padding: 8px 0 0; gap: 12px; justify-content: space-between; }
+  .bottom-bar .mic-group { order: 0; flex-basis: auto; gap: 5px; max-width: 55%; }
+  .bottom-bar .mic { width: 54px; height: 54px; }
+  .bottom-bar .mic-group > span { font-size: 11px; text-align: center; }
+  .bottom-bar .speak-toggle { flex-shrink: 0; }
+  .notice { position: relative; z-index: 11; }
+  .toolbar { padding: 10px 12px; }
+  .sessionbar { flex-wrap: wrap; gap: 8px; padding-block: 6px; }
+  .transcript-actions { flex-direction: column; align-items: stretch; gap: 4px; padding: 8px 10px; }
+  .transcript-actions > span { max-width: none; font-size: 10px; }
+  .transcript-actions div { gap: 3px; justify-content: space-between; }
+  .transcript-actions button { font-size: 13px; }
+  .quiet { padding-inline: 8px; }
+  .connection { min-height: 32px; }
+  .toolbar { flex-wrap: wrap; gap: 8px; }
+  .languages { flex-wrap: wrap; }
+  .fontcontrol input { width: 100px; }
+  .preferences { grid-template-columns: 1fr; }
+  .sessionbar small { font-size: 11px; }
+  .sessionbar { font-size: 11px; letter-spacing: 0; }
+  .heading { gap: 8px; }
+  .heading h1 { font-size: 28px; }
+  .decor { display: none; }
+  .transcript-actions > span { max-width: none; font-size: 12px; }
+}
+@media (max-height: 500px) and (max-width: 950px) {
+  .app { padding-bottom: 180px; }
+  .bottom-bar { position: fixed; z-index: 10; bottom: 0; left: 0; right: 0; padding: 6px 16px; background: #101715fa; border-top: 1px solid #52674f; display: grid; grid-template-columns: 1fr 220px; gap: 8px; align-items: center; }
+  .bottom-bar .controls { padding: 0; gap: 12px; }
+  .bottom-bar .privacy, .bottom-bar .input-hint { display: none; }
+  .bottom-bar .mic-group { order: 0; flex-basis: auto; margin: 0; gap: 2px; }
+  .bottom-bar .mic { width: 48px; height: 48px; }
+}

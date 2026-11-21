@@ -4,7 +4,7 @@ import { resolve, extname } from 'node:path'
 import { Readable } from 'node:stream'
 import { translateHandler } from './shared/translate.mjs'
 const root = resolve('dist')
-const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.webmanifest': 'application/manifest+json' }
+const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.woff': 'font/woff', '.webmanifest': 'application/manifest+json' }
 http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost')
@@ -12,7 +12,7 @@ http.createServer(async (req, res) => {
       const controller = new AbortController()
       res.on('close', () => controller.abort())
       let size = 0; const chunks = []
-      for await (const chunk of req) { size += chunk.length; if (size > 16000) { res.writeHead(400); res.end('Request too large'); return } chunks.push(chunk) }
+      for await (const chunk of req) { size += chunk.length; if (size > 100000) { res.writeHead(400); res.end('Request too large'); return } chunks.push(chunk) }
       const response = await translateHandler(new Request(url, { method: req.method, headers: req.headers, signal: controller.signal, ...(req.method === 'GET' || req.method === 'HEAD' ? {} : { body: Buffer.concat(chunks) }) }))
       res.writeHead(response.status, Object.fromEntries(response.headers))
       if (response.body) Readable.fromWeb(response.body).on('error', () => res.destroy()).pipe(res); else res.end()
