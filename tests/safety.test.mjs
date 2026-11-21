@@ -32,6 +32,10 @@ test('Taiwan phrase conversion covers whole results and split streaming phrases'
   const chunks = []; const stream = translationBuffer(text => chunks.push(text))
   stream.push('博物'); stream.push('馆周'); stream.push('日开放吗？'); stream.finish()
   assert.equal(chunks.join(''), '博物館週日開放嗎？')
+  assert.equal(protectNames('Maya Chen at Taipei Metro and Taipei Main Station').text, '__PERSON_0__ at Taipei Metro and Taipei Main Station')
+  assert.equal(traditional('Taipei Metro / Taipei Main Station'), '台北捷運 / 台北車站')
+  assert.equal(traditional('我明天有個醫生預約。請攜帶健康保險卡。當你到達時請打電話給我。'), '我明天有預約看診。請攜帶健保卡。到了請打電話給我。')
+  assert.equal(traditional('每日兩次，每次一粒，飯後服用。24 小時內不要服用超過兩片。'), '每日兩次，每次一顆，飯後服用。24 小時內不要服用超過兩顆。')
 })
 test('numeric check normalizes million, comma figures, 萬 and 億 and counts repeats', () => {
   assert.equal(numericMismatch('2.4 million US dollars', '240萬美元'), false)
@@ -62,36 +66,64 @@ test('long input is split without truncation and history resumes without cross-s
 function fixture(t) {
   t.mock.timers.enable({ apis: ['setTimeout'] })
   const commits = []; const states = []; const messages = []; const previews = []
+  let nextId = 0
   const rec = { starts: 0, stops: 0, start() { this.starts++ }, stop() { this.stops++ } }
-  const controller = createSpeechController(rec, { commit: (text, meta) => commits.push({ text, ...meta }), preview: text => previews.push(text), state: text => states.push(text), message: text => messages.push(text) })
+  const controller = createSpeechController(rec, { commit: (text, meta) => { const id = String(nextId++); commits.push({ id, text, ...meta }); return id }, revise: (id, text, meta) => { const index = commits.findIndex(s => s.id === id); if (!text) commits.splice(index, 1); else Object.assign(commits[index], { text, ...meta }) }, preview: text => previews.push(text), state: text => states.push(text), message: text => messages.push(text) })
   const result = (text, final = false, confidence = .6) => { const row = [{ transcript: text, confidence }]; row.isFinal = final; return row }
   const emit = (...results) => rec.onresult({ resultIndex: 0, results })
   t.after(() => controller.dispose())
   return { rec, controller, result, emit, commits, states, messages, previews }
 }
-test('speech requests permission before listening; clears errors, flushes interim and restarts', t => {
+test('speech requests permission before listening; saves interim without stopping and restarts immediately', t => {
   const f = fixture(t); f.controller.start()
   assert.equal(f.states.at(-1), 'requesting'); assert.equal(f.rec.maxAlternatives, 3)
   f.rec.onstart(); assert.equal(f.states.at(-1), 'listening')
   f.rec.onerror({ error: 'no-speech' }); assert.match(f.messages.at(-1), /No speech/)
   f.emit(f.result('Do not lose this')); assert.equal(f.messages.at(-1), '')
-  t.mock.timers.tick(1200); assert.equal(f.rec.stops, 1)
-  f.rec.onend(); assert.equal(f.commits[0].text, 'Do not lose this'); assert.equal(f.commits[0].confidence, .6); assert.equal(f.commits[0].forced, true)
-  t.mock.timers.tick(150); assert.equal(f.rec.starts, 2)
+  t.mock.timers.tick(1200); assert.equal(f.rec.stops, 0)
+  f.rec.onend(); assert.equal(f.rec.starts, 2)
+  t.mock.timers.tick(250)
+  assert.equal(f.commits[0].text, 'Do not lose this'); assert.equal(f.commits[0].confidence, undefined); assert.equal(f.commits[0].forced, true)
   f.rec.onend(); assert.equal(f.commits.length, 1)
 })
-test('speech finals replace interims once; long/unchanged drafts force a boundary; denial is visible', t => {
+test('speech finals replace interims once; long drafts publish prefixes without stopping; denial is visible', t => {
   const f = fixture(t); f.controller.start()
   f.emit(f.result('First draft')); f.emit(f.result('First final', true, .95)); f.emit(f.result('First final', true, .95))
   assert.equal(f.commits.length, 1); assert.equal(f.commits[0].text, 'First final')
   f.emit(f.result('First final', true), f.result('word '.repeat(26)))
-  assert.equal(f.rec.stops, 1); f.rec.onend(); assert.equal(f.commits.length, 2)
+  f.emit(f.result('First final', true), f.result('word '.repeat(27)))
+  assert.equal(f.rec.stops, 0); assert.ok(f.commits.length > 1)
+  assert.equal(f.commits[1].confidence, undefined)
   f.rec.onerror({ error: 'not-allowed' }); assert.equal(f.states.at(-1), 'idle'); assert.match(f.messages.at(-1), /not-allowed/)
 })
-test('manual finish retains pending speech before the session is archived', async t => {
+test('saving retains pending speech without interrupting capture; only Stop stops recognition', async t => {
   const f = fixture(t); f.controller.start(); f.emit(f.result('Last action item'))
-  const finished = f.controller.finish(); f.rec.onend(); await finished
-  assert.equal(f.commits[0].text, 'Last action item'); t.mock.timers.tick(150); assert.equal(f.rec.starts, 1)
+  await f.controller.finish()
+  assert.equal(f.commits[0].text, 'Last action item'); assert.equal(f.rec.stops, 0)
+  f.controller.stop(); assert.equal(f.rec.stops, 1)
+  f.rec.onend(); t.mock.timers.tick(250); assert.equal(f.rec.starts, 1)
+})
+test('microphone capture/network errors back off and permission errors remain named microphone errors', t => {
+  const f = fixture(t); f.controller.start()
+  f.rec.onerror({ error: 'audio-capture' }); f.rec.onend()
+  assert.match(f.messages.at(-1), /Microphone capture error \(audio-capture\)/)
+  assert.equal(f.states.at(-1), 'retrying')
+  t.mock.timers.tick(499); assert.equal(f.rec.starts, 1)
+  t.mock.timers.tick(1); assert.equal(f.rec.starts, 2)
+  f.rec.onstart()
+  f.rec.onerror({ error: 'network' }); f.rec.onend()
+  assert.match(f.messages.at(-1), /speech-service network/)
+  t.mock.timers.tick(999); assert.equal(f.rec.starts, 2)
+  t.mock.timers.tick(1); assert.equal(f.rec.starts, 3)
+  for (const delay of [2000, 4000, 5000, 5000]) {
+    f.rec.onstart(); f.rec.onerror({ error: 'audio-capture' }); f.rec.onend()
+    const starts = f.rec.starts
+    t.mock.timers.tick(delay - 1); assert.equal(f.rec.starts, starts)
+    t.mock.timers.tick(1); assert.equal(f.rec.starts, starts + 1)
+  }
+  for (const error of ['not-allowed', 'service-not-allowed']) { f.rec.onerror({ error }); assert.match(f.messages.at(-1), new RegExp(error)); assert.match(f.messages.at(-1), /Microphone/); assert.equal(f.states.at(-1), 'idle') }
+  f.controller.start(); f.rec.onstart(); assert.equal(f.messages.at(-1), '')
+  assert.equal(f.rec.stops, 0)
 })
 test('voice errors are visible; async voices and speed/selection are respected', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] })

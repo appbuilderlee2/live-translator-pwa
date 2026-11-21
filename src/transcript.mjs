@@ -1,4 +1,6 @@
 import { traditional } from '../shared/traditional.mjs'
+import { numericValues } from './numbers.mjs'
+export { numericValues } from './numbers.mjs'
 
 export function splitText(text, limit = 2000) {
   const chunks = []
@@ -12,10 +14,6 @@ export function splitText(text, limit = 2000) {
   }
   if (remaining) chunks.push(remaining)
   return chunks
-}
-export function numericValues(text) {
-  const scale = { thousand: 1e3, million: 1e6, billion: 1e9, trillion: 1e12, 萬: 1e4, 万: 1e4, 億: 1e8, 亿: 1e8, 千: 1e3, 百: 1e2 }
-  return [...text.normalize('NFKC').replace(/(\d),(?=\d{3}(?:\D|$))/g, '$1').matchAll(/(\d+(?:\.\d+)?)(?:\s*(thousand|million|billion|trillion|萬|万|億|亿|千|百))?/gi)].map(match => Number((Number(match[1]) * (scale[match[2]?.toLowerCase()] || 1)).toPrecision(12)))
 }
 export function numericMismatch(en, zh) {
   const remaining = numericValues(zh)

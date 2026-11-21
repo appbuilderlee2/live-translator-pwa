@@ -1,0 +1,369 @@
+{"timestamp":"2026-11-21T15:30:23.790Z","type":"start"}
+{"timestamp":"2026-11-21T15:30:25.851Z","type":"audiostart"}
+{"timestamp":"2026-11-21T15:30:26.451Z","type":"speechstart"}
+{"timestamp":"2026-11-21T15:30:26.835Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action"}]}
+{"timestamp":"2026-11-21T15:30:27.107Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action one"}]}
+{"timestamp":"2026-11-21T15:30:27.400Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action"},{"final":false,"text":" one"}]}
+{"timestamp":"2026-11-21T15:30:27.689Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action one"}]}
+{"timestamp":"2026-11-21T15:30:27.915Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action one"},{"final":false,"text":" today"}]}
+{"timestamp":"2026-11-21T15:30:28.181Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action one"},{"final":false,"text":" today we"}]}
+{"timestamp":"2026-11-21T15:30:28.236Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action one"},{"final":false,"text":" today we are"}]}
+{"timestamp":"2026-11-21T15:30:28.538Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action one today"},{"final":false,"text":" we are discuss"}]}
+{"timestamp":"2026-11-21T15:30:28.607Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action one today"},{"final":false,"text":" we are discussing"}]}
+{"timestamp":"2026-11-21T15:30:28.709Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action one today we"},{"final":false,"text":" are discussing"}]}
+{"timestamp":"2026-11-21T15:30:28.807Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action one today we are"},{"final":false,"text":" discussing"}]}
+{"timestamp":"2026-11-21T15:30:29.256Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action one today we are discussing"}]}
+{"timestamp":"2026-11-21T15:30:29.282Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action one today we are discussing"},{"final":false,"text":" Sol"}]}
+{"timestamp":"2026-11-21T15:30:29.409Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action one today we are discussing"},{"final":false,"text":" solar"}]}
+{"timestamp":"2026-11-21T15:30:29.523Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action one today we are discussing"},{"final":false,"text":" solar energy"}]}
+{"timestamp":"2026-11-21T15:30:29.982Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action one today we are discussing solar"},{"final":false,"text":" energy"}]}
+{"timestamp":"2026-11-21T15:30:30.079Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action one today we are discussing solar energy"}]}
+{"timestamp":"2026-11-21T15:30:30.501Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action one today we are discussing solar energy"},{"final":false,"text":" Sol"}]}
+{"timestamp":"2026-11-21T15:30:30.627Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action one today we are discussing solar energy"},{"final":false,"text":" solar"}]}
+{"timestamp":"2026-11-21T15:30:30.756Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action one today we are discussing solar energy"},{"final":false,"text":" solar pan"}]}
+{"timestamp":"2026-11-21T15:30:30.901Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action one today we are discussing solar energy"},{"final":false,"text":" solar panels"}]}
+{"timestamp":"2026-11-21T15:30:31.307Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action one today we are discussing solar energy solar"},{"final":false,"text":" panels"}]}
+{"timestamp":"2026-11-21T15:30:31.350Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action one today we are discussing solar energy solar"},{"final":false,"text":" panels conver"}]}
+{"timestamp":"2026-11-21T15:30:31.505Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action one today we are discussing solar energy solar panels"},{"final":false,"text":" convert"}]}
+{"timestamp":"2026-11-21T15:30:31.836Z","type":"speechend"}
+{"timestamp":"2026-11-21T15:30:31.836Z","type":"audioend"}
+{"timestamp":"2026-11-21T15:30:31.890Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action one today we are discussing solar energy solar panels"},{"final":false,"text":" convert Sun"}]}
+{"timestamp":"2026-11-21T15:30:31.950Z","type":"result","resultIndex":0,"results":[{"final":true,"text":"action one today we are discussing solar energy solar panels convert Sun"}]}
+{"timestamp":"2026-11-21T15:30:31.953Z","type":"end"}
+{"timestamp":"2026-11-21T15:30:32.104Z","type":"start"}
+{"timestamp":"2026-11-21T15:30:33.917Z","type":"audiostart"}
+{"timestamp":"2026-11-21T15:30:34.718Z","type":"speechstart"}
+{"timestamp":"2026-11-21T15:30:34.755Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can"}]}
+{"timestamp":"2026-11-21T15:30:35.073Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can play"}]}
+{"timestamp":"2026-11-21T15:30:35.286Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can play SP"}]}
+{"timestamp":"2026-11-21T15:30:35.325Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can play Stand"}]}
+{"timestamp":"2026-11-21T15:30:35.430Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can"},{"final":false,"text":" play Stand"}]}
+{"timestamp":"2026-11-21T15:30:35.482Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can"},{"final":false,"text":" play scandal"}]}
+{"timestamp":"2026-11-21T15:30:35.575Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can"},{"final":false,"text":" play sandals"}]}
+{"timestamp":"2026-11-21T15:30:35.681Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can play"},{"final":false,"text":" stand on"}]}
+{"timestamp":"2026-11-21T15:30:35.724Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can play"},{"final":false,"text":" sandals on"}]}
+{"timestamp":"2026-11-21T15:30:35.842Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can play"},{"final":false,"text":" sandals on it"}]}
+{"timestamp":"2026-11-21T15:30:36.034Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can play"},{"final":false,"text":" sandals on it through"}]}
+{"timestamp":"2026-11-21T15:30:36.249Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can play sandals on"},{"final":false,"text":" it through"}]}
+{"timestamp":"2026-11-21T15:30:36.351Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can play sandals on it"},{"final":false,"text":" through"}]}
+{"timestamp":"2026-11-21T15:30:36.481Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can play sandals on it through"}]}
+{"timestamp":"2026-11-21T15:30:36.807Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can play sandals on it through"},{"final":false,"text":" the"}]}
+{"timestamp":"2026-11-21T15:30:36.970Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can play sandals on it through"},{"final":false,"text":" the energy"}]}
+{"timestamp":"2026-11-21T15:30:37.391Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can play sandals on it through the"},{"final":false,"text":" energy is"}]}
+{"timestamp":"2026-11-21T15:30:37.600Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can play sandals on it through the energy"},{"final":false,"text":" is"}]}
+{"timestamp":"2026-11-21T15:30:37.617Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can play sandals on it through the energy"},{"final":false,"text":" is clean"}]}
+{"timestamp":"2026-11-21T15:30:37.979Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can play sandals on it through the energy is"},{"final":false,"text":" clean"}]}
+{"timestamp":"2026-11-21T15:30:38.104Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can play sandals on it through the energy is"},{"final":false,"text":" clean but"}]}
+{"timestamp":"2026-11-21T15:30:38.219Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can play sandals on it through the energy is"},{"final":false,"text":" clean"}]}
+{"timestamp":"2026-11-21T15:30:38.300Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can play sandals on it through the energy is clean"},{"final":false,"text":" but"}]}
+{"timestamp":"2026-11-21T15:30:38.692Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can play sandals on it through the energy is clean"},{"final":false,"text":" but prod"}]}
+{"timestamp":"2026-11-21T15:30:38.707Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can play sandals on it through the energy is clean"},{"final":false,"text":" but production"}]}
+{"timestamp":"2026-11-21T15:30:38.769Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can play sandals on it through the energy is clean but"},{"final":false,"text":" production"}]}
+{"timestamp":"2026-11-21T15:30:39.391Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can play sandals on it through the energy is clean but production"},{"final":false,"text":" Chang"}]}
+{"timestamp":"2026-11-21T15:30:39.457Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can play sandals on it through the energy is clean but production"},{"final":false,"text":" changes"}]}
+{"timestamp":"2026-11-21T15:30:39.756Z","type":"speechend"}
+{"timestamp":"2026-11-21T15:30:39.756Z","type":"audioend"}
+{"timestamp":"2026-11-21T15:30:39.803Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can play sandals on it through the energy is clean but production"},{"final":false,"text":" changes with"}]}
+{"timestamp":"2026-11-21T15:30:39.910Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can play sandals on it through the energy is clean but production"},{"final":false,"text":" changes with the"}]}
+{"timestamp":"2026-11-21T15:30:39.955Z","type":"result","resultIndex":0,"results":[{"final":true,"text":"can you play sandals on it through the energy is clean but production changes with the"}]}
+{"timestamp":"2026-11-21T15:30:39.956Z","type":"end"}
+{"timestamp":"2026-11-21T15:30:40.107Z","type":"start"}
+{"timestamp":"2026-11-21T15:30:41.892Z","type":"audiostart"}
+{"timestamp":"2026-11-21T15:30:42.844Z","type":"speechstart"}
+{"timestamp":"2026-11-21T15:30:42.845Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"trip"}]}
+{"timestamp":"2026-11-21T15:30:42.912Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"power"}]}
+{"timestamp":"2026-11-21T15:30:43.152Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"extra power for"}]}
+{"timestamp":"2026-11-21T15:30:43.252Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"extra power for the"}]}
+{"timestamp":"2026-11-21T15:30:43.455Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"extra power for the evening"}]}
+{"timestamp":"2026-11-21T15:30:43.727Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"extra power for"},{"final":false,"text":" the evening"}]}
+{"timestamp":"2026-11-21T15:30:43.822Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"extra power for the"},{"final":false,"text":" evening"}]}
+{"timestamp":"2026-11-21T15:30:43.963Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"extra power for the evening"}]}
+{"timestamp":"2026-11-21T15:30:44.354Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"extra power for the evening"},{"final":false,"text":" engine"}]}
+{"timestamp":"2026-11-21T15:30:44.641Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"extra power for the evening"},{"final":false,"text":" engineers"}]}
+{"timestamp":"2026-11-21T15:30:44.946Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"extra power for the evening"},{"final":false,"text":" Engineers must"}]}
+{"timestamp":"2026-11-21T15:30:45.239Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"extra power for the evening Engineers"},{"final":false,"text":" must"}]}
+{"timestamp":"2026-11-21T15:30:45.341Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"extra power for the evening Engineers"},{"final":false,"text":" must comp"}]}
+{"timestamp":"2026-11-21T15:30:45.539Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"extra power for the evening Engineers"},{"final":false,"text":" must compare"}]}
+{"timestamp":"2026-11-21T15:30:45.556Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"extra power for the evening Engineers must"},{"final":false,"text":" compare"}]}
+{"timestamp":"2026-11-21T15:30:45.844Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"extra power for the evening Engineers must"},{"final":false,"text":" compare cost"}]}
+{"timestamp":"2026-11-21T15:30:45.975Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"extra power for the evening Engineers must"},{"final":false,"text":" Compare costs"}]}
+{"timestamp":"2026-11-21T15:30:46.066Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"extra power for the evening Engineers must Compare"},{"final":false,"text":" costs"}]}
+{"timestamp":"2026-11-21T15:30:46.239Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"extra power for the evening Engineers must Compare"},{"final":false,"text":" costs and"}]}
+{"timestamp":"2026-11-21T15:30:46.530Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"extra power for the evening Engineers must Compare costs"},{"final":false,"text":" and"}]}
+{"timestamp":"2026-11-21T15:30:46.737Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"extra power for the evening Engineers must Compare costs"},{"final":false,"text":" and benefit"}]}
+{"timestamp":"2026-11-21T15:30:46.751Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"extra power for the evening Engineers must Compare costs and"},{"final":false,"text":" benefit"}]}
+{"timestamp":"2026-11-21T15:30:47.069Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"extra power for the evening Engineers must Compare costs and"},{"final":false,"text":" benefits"}]}
+{"timestamp":"2026-11-21T15:30:47.387Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"extra power for the evening Engineers must Compare costs and"},{"final":false,"text":" benefits before"}]}
+{"timestamp":"2026-11-21T15:30:47.763Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"extra power for the evening Engineers must Compare costs and benefits"},{"final":false,"text":" before Cho"}]}
+{"timestamp":"2026-11-21T15:30:47.817Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"extra power for the evening Engineers must Compare costs and benefits"},{"final":false,"text":" before choosing"}]}
+{"timestamp":"2026-11-21T15:30:47.846Z","type":"speechend"}
+{"timestamp":"2026-11-21T15:30:47.846Z","type":"audioend"}
+{"timestamp":"2026-11-21T15:30:47.871Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"extra power for the evening Engineers must Compare costs and benefits before"},{"final":false,"text":" choosing"}]}
+{"timestamp":"2026-11-21T15:30:47.942Z","type":"result","resultIndex":0,"results":[{"final":true,"text":"power for the evening Engineers must Compare costs and benefits before choosing"}]}
+{"timestamp":"2026-11-21T15:30:47.943Z","type":"end"}
+{"timestamp":"2026-11-21T15:30:48.103Z","type":"start"}
+{"timestamp":"2026-11-21T15:30:49.961Z","type":"audiostart"}
+{"timestamp":"2026-11-21T15:30:55.068Z","type":"speechstart"}
+{"timestamp":"2026-11-21T15:30:55.972Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action"}]}
+{"timestamp":"2026-11-21T15:30:56.210Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 2"}]}
+{"timestamp":"2026-11-21T15:30:56.503Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action"},{"final":false,"text":" 2"}]}
+{"timestamp":"2026-11-21T15:30:56.800Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 2"}]}
+{"timestamp":"2026-11-21T15:30:57.015Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 2"},{"final":false,"text":" today"}]}
+{"timestamp":"2026-11-21T15:30:57.301Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 2"},{"final":false,"text":" today we"}]}
+{"timestamp":"2026-11-21T15:30:57.451Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 2"},{"final":false,"text":" today we are"}]}
+{"timestamp":"2026-11-21T15:30:57.644Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 2 today"},{"final":false,"text":" we are"}]}
+{"timestamp":"2026-11-21T15:30:57.769Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 2 today"},{"final":false,"text":" we are discuss"}]}
+{"timestamp":"2026-11-21T15:30:57.818Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 2 today"},{"final":false,"text":" we are discussing"}]}
+{"timestamp":"2026-11-21T15:30:57.833Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 2 today we"},{"final":false,"text":" are discussing"}]}
+{"timestamp":"2026-11-21T15:30:58.101Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 2 today we are"},{"final":false,"text":" discussing"}]}
+{"timestamp":"2026-11-21T15:30:58.412Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 2 today we are discussing"}]}
+{"timestamp":"2026-11-21T15:30:58.443Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 2 today we are discussing"},{"final":false,"text":" water"}]}
+{"timestamp":"2026-11-21T15:30:58.929Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 2 today we are discussing"},{"final":false,"text":" water cons"}]}
+{"timestamp":"2026-11-21T15:30:59.069Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 2 today we are discussing water"},{"final":false,"text":" conser"}]}
+{"timestamp":"2026-11-21T15:30:59.231Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 2 today we are discussing water"},{"final":false,"text":" conserv"}]}
+{"timestamp":"2026-11-21T15:30:59.262Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 2 today we are discussing water"},{"final":false,"text":" conservation"}]}
+{"timestamp":"2026-11-21T15:30:59.816Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 2 today we are discussing water conservation"}]}
+{"timestamp":"2026-11-21T15:31:00.327Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 2 today we are discussing water conservation"},{"final":false,"text":" fresh"}]}
+{"timestamp":"2026-11-21T15:31:00.539Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 2 today we are discussing water conservation"},{"final":false,"text":" freshwater"}]}
+{"timestamp":"2026-11-21T15:31:00.917Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 2 today we are discussing water conservation"},{"final":false,"text":" freshwater res"}]}
+{"timestamp":"2026-11-21T15:31:00.973Z","type":"speechend"}
+{"timestamp":"2026-11-21T15:31:00.973Z","type":"audioend"}
+{"timestamp":"2026-11-21T15:31:01.043Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 2 today we are discussing water conservation fresh"},{"final":false,"text":" water res"}]}
+{"timestamp":"2026-11-21T15:31:01.093Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 2 today we are discussing water conservation fresh"},{"final":false,"text":" water resist"}]}
+{"timestamp":"2026-11-21T15:31:01.107Z","type":"result","resultIndex":0,"results":[{"final":true,"text":"action 2 today we are discussing water conservation fresh water resist"}]}
+{"timestamp":"2026-11-21T15:31:01.109Z","type":"end"}
+{"timestamp":"2026-11-21T15:31:01.261Z","type":"start"}
+{"timestamp":"2026-11-21T15:31:03.036Z","type":"audiostart"}
+{"timestamp":"2026-11-21T15:31:03.636Z","type":"speechstart"}
+{"timestamp":"2026-11-21T15:31:04.241Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can"}]}
+{"timestamp":"2026-11-21T15:31:04.436Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can me"}]}
+{"timestamp":"2026-11-21T15:31:04.529Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure"}]}
+{"timestamp":"2026-11-21T15:31:04.678Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how"}]}
+{"timestamp":"2026-11-21T15:31:04.703Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how much"}]}
+{"timestamp":"2026-11-21T15:31:04.729Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can"},{"final":false,"text":" measure how much"}]}
+{"timestamp":"2026-11-21T15:31:04.879Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure"},{"final":false,"text":" how much"}]}
+{"timestamp":"2026-11-21T15:31:05.104Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure"},{"final":false,"text":" how much water"}]}
+{"timestamp":"2026-11-21T15:31:05.180Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how"},{"final":false,"text":" much water"}]}
+{"timestamp":"2026-11-21T15:31:05.281Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how much"},{"final":false,"text":" water"}]}
+{"timestamp":"2026-11-21T15:31:05.657Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how much"},{"final":false,"text":" water their"}]}
+{"timestamp":"2026-11-21T15:31:05.755Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how much water"},{"final":false,"text":" their"}]}
+{"timestamp":"2026-11-21T15:31:05.920Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how much water"},{"final":false,"text":" their school"}]}
+{"timestamp":"2026-11-21T15:31:06.153Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how much water"},{"final":false,"text":" their school you"}]}
+{"timestamp":"2026-11-21T15:31:06.196Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how much water their"},{"final":false,"text":" school you"}]}
+{"timestamp":"2026-11-21T15:31:06.319Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how much water their"},{"final":false,"text":" school use"}]}
+{"timestamp":"2026-11-21T15:31:06.511Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how much water their school"},{"final":false,"text":" use in"}]}
+{"timestamp":"2026-11-21T15:31:06.685Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how much water their school"},{"final":false,"text":" use in each"}]}
+{"timestamp":"2026-11-21T15:31:06.917Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how much water their school use"},{"final":false,"text":" in each day"}]}
+{"timestamp":"2026-11-21T15:31:07.088Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how much water their school use in"},{"final":false,"text":" each day"}]}
+{"timestamp":"2026-11-21T15:31:07.186Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how much water their school use in each"},{"final":false,"text":" day"}]}
+{"timestamp":"2026-11-21T15:31:07.395Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how much water their school use in each day"}]}
+{"timestamp":"2026-11-21T15:31:07.686Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how much water their school use in each day"},{"final":false,"text":" repair"}]}
+{"timestamp":"2026-11-21T15:31:07.813Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how much water their school use in each day"},{"final":false,"text":" repairing"}]}
+{"timestamp":"2026-11-21T15:31:08.193Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how much water their school use in each day"},{"final":false,"text":" repairing a"}]}
+{"timestamp":"2026-11-21T15:31:08.292Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how much water their school use in each day"},{"final":false,"text":" repairing a Le"}]}
+{"timestamp":"2026-11-21T15:31:08.432Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how much water their school use in each day"},{"final":false,"text":" repairing a leaking"}]}
+{"timestamp":"2026-11-21T15:31:08.482Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how much water their school use in each day repairing"},{"final":false,"text":" a leaking"}]}
+{"timestamp":"2026-11-21T15:31:08.761Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how much water their school use in each day repairing a"},{"final":false,"text":" leaking tap"}]}
+{"timestamp":"2026-11-21T15:31:09.023Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how much water their school use in each day repairing a leaking"},{"final":false,"text":" tap"}]}
+{"timestamp":"2026-11-21T15:31:09.050Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how much water their school use in each day repairing a leaking"},{"final":false,"text":" tap is"}]}
+{"timestamp":"2026-11-21T15:31:09.241Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how much water their school use in each day repairing a leaking"},{"final":false,"text":" tap is a"}]}
+{"timestamp":"2026-11-21T15:31:09.244Z","type":"speechend"}
+{"timestamp":"2026-11-21T15:31:09.244Z","type":"audioend"}
+{"timestamp":"2026-11-21T15:31:09.315Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how much water their school use in each day repairing a leaking tap"},{"final":false,"text":" is a"}]}
+{"timestamp":"2026-11-21T15:31:09.336Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"can measure how much water their school use in each day repairing a leaking tap"},{"final":false,"text":" is a simple"}]}
+{"timestamp":"2026-11-21T15:31:09.364Z","type":"result","resultIndex":0,"results":[{"final":true,"text":"can measure how much water their school use in each day repairing a leaking tap is a simple"}]}
+{"timestamp":"2026-11-21T15:31:09.366Z","type":"end"}
+{"timestamp":"2026-11-21T15:31:09.525Z","type":"start"}
+{"timestamp":"2026-11-21T15:31:11.404Z","type":"audiostart"}
+{"timestamp":"2026-11-21T15:31:12.008Z","type":"speechstart"}
+{"timestamp":"2026-11-21T15:31:12.178Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"long"}]}
+{"timestamp":"2026-11-21T15:31:12.283Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer"}]}
+{"timestamp":"2026-11-21T15:31:12.463Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer can"}]}
+{"timestamp":"2026-11-21T15:31:12.617Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer can help"}]}
+{"timestamp":"2026-11-21T15:31:13.010Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer"},{"final":false,"text":" can help"}]}
+{"timestamp":"2026-11-21T15:31:13.099Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer can"},{"final":false,"text":" help a"}]}
+{"timestamp":"2026-11-21T15:31:13.159Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer can"},{"final":false,"text":" help a garden"}]}
+{"timestamp":"2026-11-21T15:31:13.241Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer can help"},{"final":false,"text":" a garden"}]}
+{"timestamp":"2026-11-21T15:31:13.485Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer can help"},{"final":false,"text":" a garden during"}]}
+{"timestamp":"2026-11-21T15:31:13.642Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer can help a"},{"final":false,"text":" garden during"}]}
+{"timestamp":"2026-11-21T15:31:13.754Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer can help a garden"},{"final":false,"text":" during"}]}
+{"timestamp":"2026-11-21T15:31:13.974Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer can help a garden"},{"final":false,"text":" during dry"}]}
+{"timestamp":"2026-11-21T15:31:14.080Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer can help a garden during"},{"final":false,"text":" dry"}]}
+{"timestamp":"2026-11-21T15:31:14.161Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer can help a garden during"},{"final":false,"text":" dry weather"}]}
+{"timestamp":"2026-11-21T15:31:14.545Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer can help a garden during dry"},{"final":false,"text":" weather"}]}
+{"timestamp":"2026-11-21T15:31:14.750Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer can help a garden during dry weather"}]}
+{"timestamp":"2026-11-21T15:31:15.256Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer can help a garden during dry weather"},{"final":false,"text":" good"}]}
+{"timestamp":"2026-11-21T15:31:15.388Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer can help a garden during dry weather"},{"final":false,"text":" good DEC"}]}
+{"timestamp":"2026-11-21T15:31:15.564Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer can help a garden during dry weather"},{"final":false,"text":" good decisions"}]}
+{"timestamp":"2026-11-21T15:31:15.795Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer can help a garden during dry weather good"},{"final":false,"text":" decisions"}]}
+{"timestamp":"2026-11-21T15:31:16.068Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer can help a garden during dry weather good"},{"final":false,"text":" decisions depend"}]}
+{"timestamp":"2026-11-21T15:31:16.166Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer can help a garden during dry weather good decisions"},{"final":false,"text":" depend"}]}
+{"timestamp":"2026-11-21T15:31:16.265Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer can help a garden during dry weather good decisions"},{"final":false,"text":" depend on"}]}
+{"timestamp":"2026-11-21T15:31:16.593Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer can help a garden during dry weather good decisions depend"},{"final":false,"text":" on care"}]}
+{"timestamp":"2026-11-21T15:31:16.873Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer can help a garden during dry weather good decisions depend"},{"final":false,"text":" on careful"}]}
+{"timestamp":"2026-11-21T15:31:16.900Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer can help a garden during dry weather good decisions depend on"},{"final":false,"text":" careful"}]}
+{"timestamp":"2026-11-21T15:31:17.071Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer can help a garden during dry weather good decisions depend on"},{"final":false,"text":" careful me"}]}
+{"timestamp":"2026-11-21T15:31:17.094Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer can help a garden during dry weather good decisions depend on"},{"final":false,"text":" careful meas"}]}
+{"timestamp":"2026-11-21T15:31:17.176Z","type":"speechend"}
+{"timestamp":"2026-11-21T15:31:17.177Z","type":"audioend"}
+{"timestamp":"2026-11-21T15:31:17.193Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"longer can help a garden during dry weather good decisions depend on"},{"final":false,"text":" careful measurement"}]}
+{"timestamp":"2026-11-21T15:31:17.248Z","type":"result","resultIndex":0,"results":[{"final":true,"text":"longer can help a garden during dry weather good decisions depend on careful measurement"}]}
+{"timestamp":"2026-11-21T15:31:17.251Z","type":"end"}
+{"timestamp":"2026-11-21T15:31:17.402Z","type":"start"}
+{"timestamp":"2026-11-21T15:31:19.283Z","type":"audiostart"}
+{"timestamp":"2026-11-21T15:31:20.081Z","type":"speechstart"}
+{"timestamp":"2026-11-21T15:31:20.082Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"is"}]}
+{"timestamp":"2026-11-21T15:31:20.263Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"in the"}]}
+{"timestamp":"2026-11-21T15:31:20.456Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"is the end"}]}
+{"timestamp":"2026-11-21T15:31:20.460Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"in the end"}]}
+{"timestamp":"2026-11-21T15:31:20.561Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"in the end of"}]}
+{"timestamp":"2026-11-21T15:31:20.881Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"in the end of action"}]}
+{"timestamp":"2026-11-21T15:31:21.012Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"in the end"},{"final":false,"text":" of action"}]}
+{"timestamp":"2026-11-21T15:31:21.131Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"in the end of"},{"final":false,"text":" action"}]}
+{"timestamp":"2026-11-21T15:31:21.151Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"in the end of"},{"final":false,"text":" action 2"}]}
+{"timestamp":"2026-11-21T15:31:21.332Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"in the end of action"},{"final":false,"text":" 2"}]}
+{"timestamp":"2026-11-21T15:31:21.741Z","type":"result","resultIndex":0,"results":[{"final":true,"text":"in the end of section 2"}]}
+{"timestamp":"2026-11-21T15:31:22.941Z","type":"speechend"}
+{"timestamp":"2026-11-21T15:31:22.941Z","type":"audioend"}
+{"timestamp":"2026-11-21T15:31:22.971Z","type":"end"}
+{"timestamp":"2026-11-21T15:31:23.123Z","type":"start"}
+{"timestamp":"2026-11-21T15:31:25.050Z","type":"audiostart"}
+{"timestamp":"2026-11-21T15:31:25.751Z","type":"speechstart"}
+{"timestamp":"2026-11-21T15:31:26.275Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action"}]}
+{"timestamp":"2026-11-21T15:31:26.619Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action free"}]}
+{"timestamp":"2026-11-21T15:31:26.818Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action"},{"final":false,"text":" free"}]}
+{"timestamp":"2026-11-21T15:31:27.112Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action free"}]}
+{"timestamp":"2026-11-21T15:31:27.331Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action free"},{"final":false,"text":" today"}]}
+{"timestamp":"2026-11-21T15:31:27.623Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action free"},{"final":false,"text":" today we"}]}
+{"timestamp":"2026-11-21T15:31:27.801Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action free"},{"final":false,"text":" today we are"}]}
+{"timestamp":"2026-11-21T15:31:27.915Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action free today"},{"final":false,"text":" we are"}]}
+{"timestamp":"2026-11-21T15:31:28.043Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action free today"},{"final":false,"text":" we are discuss"}]}
+{"timestamp":"2026-11-21T15:31:28.140Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action free today"},{"final":false,"text":" we are discussing"}]}
+{"timestamp":"2026-11-21T15:31:28.196Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action free today we"},{"final":false,"text":" are discussing"}]}
+{"timestamp":"2026-11-21T15:31:28.392Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action free today we are"},{"final":false,"text":" discussing"}]}
+{"timestamp":"2026-11-21T15:31:28.690Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action free today we are"},{"final":false,"text":" discussing public"}]}
+{"timestamp":"2026-11-21T15:31:28.709Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action free today we are discussing"},{"final":false,"text":" public"}]}
+{"timestamp":"2026-11-21T15:31:29.304Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action free today we are discussing public"},{"final":false,"text":" trans"}]}
+{"timestamp":"2026-11-21T15:31:29.500Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action free today we are discussing public"},{"final":false,"text":" transport"}]}
+{"timestamp":"2026-11-21T15:31:30.107Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action free today we are discussing public transport"}]}
+{"timestamp":"2026-11-21T15:31:30.465Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action free today we are discussing public transport"},{"final":false,"text":" AC"}]}
+{"timestamp":"2026-11-21T15:31:30.669Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action free today we are discussing public transport"},{"final":false,"text":" acid"}]}
+{"timestamp":"2026-11-21T15:31:30.796Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action free today we are discussing public transport"},{"final":false,"text":" a city"}]}
+{"timestamp":"2026-11-21T15:31:31.064Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action free today we are discussing public transport"},{"final":false,"text":" acetylene"}]}
+{"timestamp":"2026-11-21T15:31:31.276Z","type":"speechend"}
+{"timestamp":"2026-11-21T15:31:31.276Z","type":"audioend"}
+{"timestamp":"2026-11-21T15:31:31.428Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action free today we are discussing public transport"},{"final":false,"text":" a city needs"}]}
+{"timestamp":"2026-11-21T15:31:31.522Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action free today we are discussing public transport"},{"final":false,"text":" acetylene safe"}]}
+{"timestamp":"2026-11-21T15:31:31.763Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action free today we are discussing public transport"},{"final":false,"text":" acetylene safe and"}]}
+{"timestamp":"2026-11-21T15:31:31.785Z","type":"result","resultIndex":0,"results":[{"final":true,"text":"action free today we are discussing public transport acetylene safe"}]}
+{"timestamp":"2026-11-21T15:31:31.788Z","type":"end"}
+{"timestamp":"2026-11-21T15:31:31.939Z","type":"start"}
+{"timestamp":"2026-11-21T15:31:33.419Z","type":"audiostart"}
+{"timestamp":"2026-11-21T15:31:34.476Z","type":"speechstart"}
+{"timestamp":"2026-11-21T15:31:34.476Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"bus"}]}
+{"timestamp":"2026-11-21T15:31:34.709Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston"}]}
+{"timestamp":"2026-11-21T15:31:34.838Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston and"}]}
+{"timestamp":"2026-11-21T15:31:35.055Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston and train"}]}
+{"timestamp":"2026-11-21T15:31:35.186Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston and trains"}]}
+{"timestamp":"2026-11-21T15:31:35.295Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston"},{"final":false,"text":" and trains"}]}
+{"timestamp":"2026-11-21T15:31:35.383Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston and"},{"final":false,"text":" trains can"}]}
+{"timestamp":"2026-11-21T15:31:35.585Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston and"},{"final":false,"text":" trains can car"}]}
+{"timestamp":"2026-11-21T15:31:35.764Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston and"},{"final":false,"text":" trains can carry"}]}
+{"timestamp":"2026-11-21T15:31:35.769Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston and trains"},{"final":false,"text":" can carry"}]}
+{"timestamp":"2026-11-21T15:31:35.966Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston and trains can"},{"final":false,"text":" carry"}]}
+{"timestamp":"2026-11-21T15:31:35.985Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston and trains can"},{"final":false,"text":" carry many"}]}
+{"timestamp":"2026-11-21T15:31:36.081Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston and trains can"},{"final":false,"text":" carry many people"}]}
+{"timestamp":"2026-11-21T15:31:36.253Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston and trains can carry"},{"final":false,"text":" many people"}]}
+{"timestamp":"2026-11-21T15:31:36.534Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston and trains can carry"},{"final":false,"text":" many people while"}]}
+{"timestamp":"2026-11-21T15:31:36.572Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston and trains can carry many"},{"final":false,"text":" people while"}]}
+{"timestamp":"2026-11-21T15:31:36.758Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston and trains can carry many people"},{"final":false,"text":" while"}]}
+{"timestamp":"2026-11-21T15:31:36.829Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston and trains can carry many people"},{"final":false,"text":" while using"}]}
+{"timestamp":"2026-11-21T15:31:37.177Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston and trains can carry many people while"},{"final":false,"text":" using"}]}
+{"timestamp":"2026-11-21T15:31:37.478Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston and trains can carry many people while using"}]}
+{"timestamp":"2026-11-21T15:31:37.593Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston and trains can carry many people while using"},{"final":false,"text":" less"}]}
+{"timestamp":"2026-11-21T15:31:37.821Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston and trains can carry many people while using"},{"final":false,"text":" less space"}]}
+{"timestamp":"2026-11-21T15:31:38.170Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston and trains can carry many people while using less"},{"final":false,"text":" space on"}]}
+{"timestamp":"2026-11-21T15:31:38.354Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston and trains can carry many people while using less space"},{"final":false,"text":" on"}]}
+{"timestamp":"2026-11-21T15:31:38.421Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston and trains can carry many people while using less space"},{"final":false,"text":" than car"}]}
+{"timestamp":"2026-11-21T15:31:38.522Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston and trains can carry many people while using less space"},{"final":false,"text":" than cars"}]}
+{"timestamp":"2026-11-21T15:31:38.978Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston and trains can carry many people while using less space than"},{"final":false,"text":" cars"}]}
+{"timestamp":"2026-11-21T15:31:39.069Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston and trains can carry many people while using less space than cars"}]}
+{"timestamp":"2026-11-21T15:31:39.380Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston and trains can carry many people while using less space than cars"},{"final":false,"text":" fre"}]}
+{"timestamp":"2026-11-21T15:31:39.409Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"Boston and trains can carry many people while using less space than cars"},{"final":false,"text":" frequ"}]}
+{"timestamp":"2026-11-21T15:31:39.477Z","type":"speechend"}
+{"timestamp":"2026-11-21T15:31:39.477Z","type":"audioend"}
+{"timestamp":"2026-11-21T15:31:39.599Z","type":"result","resultIndex":0,"results":[{"final":true,"text":"Boston and trains can carry many people while using less space than cars frequ"}]}
+{"timestamp":"2026-11-21T15:31:39.614Z","type":"end"}
+{"timestamp":"2026-11-21T15:31:39.766Z","type":"start"}
+{"timestamp":"2026-11-21T15:31:41.587Z","type":"audiostart"}
+{"timestamp":"2026-11-21T15:31:42.447Z","type":"speechstart"}
+{"timestamp":"2026-11-21T15:31:42.448Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"last"}]}
+{"timestamp":"2026-11-21T15:31:42.754Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"class on"}]}
+{"timestamp":"2026-11-21T15:31:42.947Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"class on time"}]}
+{"timestamp":"2026-11-21T15:31:43.415Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"class on"},{"final":false,"text":" time"}]}
+{"timestamp":"2026-11-21T15:31:43.514Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"class on time"}]}
+{"timestamp":"2026-11-21T15:31:43.871Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"class on time"},{"final":false,"text":" PL"}]}
+{"timestamp":"2026-11-21T15:31:44.055Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"class on time"},{"final":false,"text":" plann"}]}
+{"timestamp":"2026-11-21T15:31:44.138Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"class on time"},{"final":false,"text":" planners"}]}
+{"timestamp":"2026-11-21T15:31:44.432Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"class on time"},{"final":false,"text":" planners should"}]}
+{"timestamp":"2026-11-21T15:31:44.649Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"class on time"},{"final":false,"text":" planners should listen"}]}
+{"timestamp":"2026-11-21T15:31:44.675Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"class on time planners"},{"final":false,"text":" should listen"}]}
+{"timestamp":"2026-11-21T15:31:45.002Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"class on time planners should"},{"final":false,"text":" listen to"}]}
+{"timestamp":"2026-11-21T15:31:45.262Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"class on time planners should listen"},{"final":false,"text":" to pass"}]}
+{"timestamp":"2026-11-21T15:31:45.365Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"class on time planners should listen"},{"final":false,"text":" to passen"}]}
+{"timestamp":"2026-11-21T15:31:45.451Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"class on time planners should listen"},{"final":false,"text":" to passengers"}]}
+{"timestamp":"2026-11-21T15:31:45.617Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"class on time planners should listen to"},{"final":false,"text":" passengers"}]}
+{"timestamp":"2026-11-21T15:31:45.747Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"class on time planners should listen to"},{"final":false,"text":" passengers and"}]}
+{"timestamp":"2026-11-21T15:31:45.918Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"class on time planners should listen to"},{"final":false,"text":" passengers"}]}
+{"timestamp":"2026-11-21T15:31:45.931Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"class on time planners should listen to"},{"final":false,"text":" passengers and"}]}
+{"timestamp":"2026-11-21T15:31:46.030Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"class on time planners should listen to passengers"},{"final":false,"text":" and"}]}
+{"timestamp":"2026-11-21T15:31:46.334Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"class on time planners should listen to passengers"},{"final":false,"text":" and stud"}]}
+{"timestamp":"2026-11-21T15:31:46.542Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"class on time planners should listen to passengers and"},{"final":false,"text":" study"}]}
+{"timestamp":"2026-11-21T15:31:46.793Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"class on time planners should listen to passengers and"},{"final":false,"text":" study travel"}]}
+{"timestamp":"2026-11-21T15:31:47.132Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"class on time planners should listen to passengers and study"},{"final":false,"text":" travel Pat"}]}
+{"timestamp":"2026-11-21T15:31:47.285Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"class on time planners should listen to passengers and study"},{"final":false,"text":" travel pattern"}]}
+{"timestamp":"2026-11-21T15:31:47.431Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"class on time planners should listen to passengers and study travel"},{"final":false,"text":" patterns"}]}
+{"timestamp":"2026-11-21T15:31:47.449Z","type":"speechend"}
+{"timestamp":"2026-11-21T15:31:47.449Z","type":"audioend"}
+{"timestamp":"2026-11-21T15:31:47.533Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"class on time planners should listen to passengers and study travel"},{"final":false,"text":" patterns before"}]}
+{"timestamp":"2026-11-21T15:31:47.574Z","type":"result","resultIndex":0,"results":[{"final":true,"text":"class on time planners should listen to passengers and study travel patterns before"}]}
+{"timestamp":"2026-11-21T15:31:47.578Z","type":"end"}
+{"timestamp":"2026-11-21T15:31:47.729Z","type":"start"}
+{"timestamp":"2026-11-21T15:31:49.555Z","type":"audiostart"}
+{"timestamp":"2026-11-21T15:31:50.509Z","type":"speechstart"}
+{"timestamp":"2026-11-21T15:31:50.512Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"non"}]}
+{"timestamp":"2026-11-21T15:31:50.843Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"nonfiction"}]}
+{"timestamp":"2026-11-21T15:31:51.122Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"nonfiction free"}]}
+{"timestamp":"2026-11-21T15:31:51.387Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"nonfiction"},{"final":false,"text":" free"}]}
+{"timestamp":"2026-11-21T15:31:51.600Z","type":"result","resultIndex":0,"results":[{"final":true,"text":"nonfiction free"}]}
+{"timestamp":"2026-11-21T15:31:52.800Z","type":"speechend"}
+{"timestamp":"2026-11-21T15:31:52.800Z","type":"audioend"}
+{"timestamp":"2026-11-21T15:31:52.826Z","type":"end"}
+{"timestamp":"2026-11-21T15:31:52.980Z","type":"start"}
+{"timestamp":"2026-11-21T15:31:54.920Z","type":"audiostart"}
+{"timestamp":"2026-11-21T15:31:55.620Z","type":"speechstart"}
+{"timestamp":"2026-11-21T15:31:56.251Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action"}]}
+{"timestamp":"2026-11-21T15:31:56.560Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 4"}]}
+{"timestamp":"2026-11-21T15:31:56.773Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action"},{"final":false,"text":" 4"}]}
+{"timestamp":"2026-11-21T15:31:57.170Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 4"}]}
+{"timestamp":"2026-11-21T15:31:57.312Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action"},{"final":false,"text":" for"}]}
+{"timestamp":"2026-11-21T15:31:57.351Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action"},{"final":false,"text":" 4 today"}]}
+{"timestamp":"2026-11-21T15:31:57.585Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action"},{"final":false,"text":" 4 today we"}]}
+{"timestamp":"2026-11-21T15:31:57.767Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action"},{"final":false,"text":" 4 today we are"}]}
+{"timestamp":"2026-11-21T15:31:58.050Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 4 today"},{"final":false,"text":" we are"}]}
+{"timestamp":"2026-11-21T15:31:58.095Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 4 today"},{"final":false,"text":" we are discuss"}]}
+{"timestamp":"2026-11-21T15:31:58.187Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 4 today"},{"final":false,"text":" we are discussing"}]}
+{"timestamp":"2026-11-21T15:31:58.210Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 4 today we"},{"final":false,"text":" are discussing"}]}
+{"timestamp":"2026-11-21T15:31:58.327Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 4 today we are"},{"final":false,"text":" discussing"}]}
+{"timestamp":"2026-11-21T15:31:58.760Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 4 today we are discussing"},{"final":false,"text":" scient"}]}
+{"timestamp":"2026-11-21T15:31:58.864Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 4 today we are discussing"},{"final":false,"text":" scientific"}]}
+{"timestamp":"2026-11-21T15:31:59.491Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 4 today we are discussing scientific"},{"final":false,"text":" exper"}]}
+{"timestamp":"2026-11-21T15:31:59.641Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 4 today we are discussing scientific"},{"final":false,"text":" experiment"}]}
+{"timestamp":"2026-11-21T15:32:00.158Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 4 today we are discussing scientific experiment"}]}
+{"timestamp":"2026-11-21T15:32:00.897Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 4 today we are discussing scientific experiment"},{"final":false,"text":" a"}]}
+{"timestamp":"2026-11-21T15:32:00.944Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 4 today we are discussing scientific experiment"},{"final":false,"text":" a scient"}]}
+{"timestamp":"2026-11-21T15:32:01.115Z","type":"result","resultIndex":0,"results":[{"final":false,"text":"action 4 today we are discussing scientific experiment"},{"final":false,"text":" a scientific"}]}
+{"timestamp":"2026-11-21T15:32:01.254Z","type":"speechend"}
+{"timestamp":"2026-11-21T15:32:01.254Z","type":"audioend"}
+{"timestamp":"2026-11-21T15:32:01.255Z","type":"error","error":"audio-capture"}
+{"timestamp":"2026-11-21T15:32:01.256Z","type":"end"}
