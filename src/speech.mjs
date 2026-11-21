@@ -2,6 +2,7 @@ import { numericValues, splitText } from './transcript.mjs'
 
 const words = text => [...text.matchAll(/\S+/g)]
 const normalized = text => words(text).map(w => w[0].toLowerCase().replace(/[^\p{L}\p{N}]/gu, ''))
+const filler = text => /^(?:a|an|the|um|uh|er|ah|and|or|but|to|of|in|on|at|for|with|is|are|was|were|be|been|can)$/i.test(normalized(text).join(' '))
 const slice = (text, tokens, start, end) => end > start ? text.slice(tokens[start].index, tokens[end - 1].index + tokens[end - 1][0].length) : ''
 function sentences(text) {
   return text.split(/(?<=[.!?])\s+/).flatMap(s => splitText(s)).flatMap(s => {
@@ -52,7 +53,7 @@ function missing(values, expected) {
 export function createSpeechController(rec, { commit, revise = (_id, _text, _meta) => {}, preview, state, message }) {
   rec.continuous = true; rec.interimResults = true; rec.lang = 'en-US'; rec.maxAlternatives = 3
   let wanted = false; let running = false; let current = session(); let closing; let pause
-  let retryTimer; let failures = 0; let failed = false
+  let retryTimer; let failures = 0; let failed = false; let immediateRetry = false
   const timers = new Set()
   const later = fn => {
     const timer = setTimeout(() => { timers.delete(timer); fn() }, 250)
@@ -147,7 +148,8 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
     const overlap = candidate.slice(0, 10).filter(word => old.slice(0, 10).includes(word)).length
     const matchesClosing = closing?.awaitingFinal && incoming[0].final && ((!closing.flushed && !current.text) || overlap >= Math.min(candidate.length, old.length, 10) * .6)
     const target = matchesClosing ? closing : current
-    const rows = trackRows(target, incoming)
+    let rows = trackRows(target, incoming).filter(row => !row.saved || !filler(row.text))
+    if (filler(rows.filter(row => !row.final).map(row => row.text).join(' '))) rows = rows.filter(row => row.final)
     const text = rows.map(r => r.text).join(' ')
     let count = 0
     const finals = []
@@ -187,7 +189,9 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
     } else if (['audio-capture', 'network'].includes(event.error)) {
       failed = true
       message(event.error === 'network' ? '麥克風語音服務網路錯誤（network），正在重試。請檢查網路或按「重試麥克風」。Microphone speech-service network error (network). Retrying; check your connection or Retry mic.' : '麥克風擷取失敗（audio-capture），正在重試。請檢查麥克風連線與權限，或按「重試麥克風」。Microphone capture error (audio-capture). Retrying; check microphone connection and permissions or Retry mic.')
-      scheduleRetry()
+      immediateRetry = event.error === 'network' && failures === 0
+      if (immediateRetry) state('retrying')
+      else scheduleRetry()
     } else if (event.error === 'no-speech') message('未偵測到語音，請靠近麥克風再說一次。No speech detected. Try speaking closer to your microphone.')
     else if (event.error !== 'aborted') message(`語音辨識錯誤（${event.error}），仍可輸入英文翻譯。Speech recognition: ${event.error}. You can still type below.`)
   }
@@ -203,7 +207,8 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
     closing = ended
     ended.timer = later(() => flush(ended))
     current = session(); current.afterRestart = ended.awaitingFinal; preview('')
-    if (wanted && failed) scheduleRetry()
+    if (wanted && failed && immediateRetry) { immediateRetry = false; failures++; startRecognition() }
+    else if (wanted && failed) scheduleRetry()
     else if (wanted) startRecognition()
     else state('idle')
   }
@@ -216,7 +221,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
     retryTimer = setTimeout(() => { retryTimer = undefined; if (wanted) startRecognition() }, Math.min(500 * 2 ** failures++, 5000))
   }
   return {
-    start() { wanted = true; failed = false; failures = 0; clearTimeout(retryTimer); retryTimer = undefined; message(''); startRecognition() },
+    start() { wanted = true; failed = false; failures = 0; immediateRetry = false; clearTimeout(retryTimer); retryTimer = undefined; message(''); startRecognition() },
     stop() {
       wanted = false; clearTimeout(pause); clearTimeout(retryTimer); retryTimer = undefined; state('idle')
       const stopped = current

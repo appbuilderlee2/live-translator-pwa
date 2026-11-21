@@ -1,14 +1,15 @@
 import { meetingPrompt, normalizeBusiness, protectNames, protectCurrency, currencySource } from './business.mjs'
 import { traditional, translationBuffer } from './traditional.mjs'
-import { createLimiter, retry, withTimeout } from './retry.mjs'
+import { createLimiter, createRateLimiter, retry, withTimeout } from './retry.mjs'
 import { negationMismatch, normalizeNegations } from './negation.mjs'
 import { medicalPrompt, normalizeMedical, protectMedical, medicalTranslation, medicalWarnings } from './medical.mjs'
 
 const limited = createLimiter(2)
 const previewLimited = createLimiter(1)
+const paced = createRateLimiter(150)
 const headers = { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }
 async function upstream(url, options) {
-  const response = await fetch(url, options)
+  const response = await paced(() => fetch(url, options), { signal: options.signal, priority: options.preview ? -1 : 0 })
   if (!response.ok) {
     await response.body?.cancel()
     const error = new Error('Translation provider unavailable')
@@ -41,8 +42,10 @@ export async function translateHandler(req) {
     if (!env.OPENAI_API_KEY) {
       const medical = protectMedical(currency.text, context)
       const protectedText = protectNames(medical.text)
+      let endpoint = 0
       const result = await attempt(async signal => {
-        const response = await upstream(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-TW&dt=t&q=${encodeURIComponent(protectedText.text)}`, { signal })
+        const host = ['translate.googleapis.com', 'translate.google.com'][endpoint++ % 2]
+        const response = await upstream(`https://${host}/translate_a/single?client=gtx&sl=en&tl=zh-TW&dt=t&q=${encodeURIComponent(protectedText.text)}`, { signal, preview })
         const data = await response.json()
         const result = data[0].map(part => part[0] || '').join('')
         if (!result.trim()) throw new Error('Empty translation')

@@ -1,8 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createTranslationRecovery, unresolvedTranslations } from '../src/recovery.mjs'
-import { createLimiter, withTimeout } from '../shared/retry.mjs'
+import { createLimiter, createRateLimiter, withTimeout } from '../shared/retry.mjs'
 import { translateHandler } from '../shared/translate.mjs'
+import { networkTranslation } from '../src/network.mjs'
 
 const flush = async () => { for (let i = 0; i < 100; i++) await Promise.resolve() }
 const request = (text, preview = false) => new Request('http://localhost/api/translate', { method: 'POST', body: JSON.stringify({ text, preview }) })
@@ -90,8 +91,8 @@ test('four simultaneous initial provider failures retry without occupying limite
     return count === 1 ? new Response('Unavailable', { status: 503 }) : Response.json([[['完成']]])
   }
   const requests = ['walking', 'clinic', 'daughter', 'review'].map(text => translateHandler(request(text)))
-  await flush(); assert.deepEqual([...attempts.values()], [1, 1, 1, 1])
-  t.mock.timers.tick(180); await flush()
+  await flush()
+  for (let i = 0; i < 20; i++) { t.mock.timers.tick(150); await flush() }
   for (const response of await Promise.all(requests)) { assert.equal(response.status, 200); assert.equal(await response.text(), '完成') }
   assert.deepEqual([...attempts.values()], [2, 2, 2, 2])
 })
@@ -105,5 +106,58 @@ test('a stalled preview response body times out and releases capacity for the ne
   await flush(); t.mock.timers.tick(1200); await flush()
   assert.equal((await stalled).status, 502)
   globalThis.fetch = async () => Response.json([[['已恢復']]])
-  assert.equal(await (await translateHandler(request('healthy preview', true))).text(), '已恢復')
+  const healthy = translateHandler(request('healthy preview', true))
+  await flush(); t.mock.timers.tick(150); await flush()
+  assert.equal(await (await healthy).text(), '已恢復')
+})
+
+test('upstream starts are paced, and cancelled queued work never calls a provider', async t => {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: 1000 })
+  const paced = createRateLimiter(150); const calls = []
+  const first = paced(() => calls.push(Date.now()))
+  const controller = new AbortController()
+  const cancelled = assert.rejects(paced(() => calls.push('cancelled'), { signal: controller.signal }), /abort/i)
+  const second = paced(() => calls.push(Date.now()))
+  await flush(); controller.abort(); await flush()
+  t.mock.timers.tick(149); await flush(); assert.deepEqual(calls, [1000])
+  t.mock.timers.tick(1); await flush(); await Promise.all([first, second, cancelled])
+  assert.deepEqual(calls, [1000, 1150])
+})
+
+test('100 captions recover during a sustained 50% HTTP 502 storm without manual retry', async t => {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: Date.now() })
+  const original = fetch; const key = process.env.OPENAI_API_KEY; delete process.env.OPENAI_API_KEY
+  t.after(() => { globalThis.fetch = original; if (key !== undefined) process.env.OPENAI_API_KEY = key })
+  const segments = new Map(); const attempts = new Map(); const hosts = new Set(); const recovered = []
+  let responses = 0; let failures = 0
+  globalThis.fetch = async (url, options) => {
+    if (url === '/api/translate') {
+      const response = await translateHandler(new Request('http://localhost/api/translate', options))
+      responses++; if (response.status === 502) failures++
+      return response
+    }
+    const target = new URL(url); hosts.add(target.host)
+    const id = Number(target.searchParams.get('q').match(/\d+/)[0])
+    const count = (attempts.get(id) || 0) + 1; attempts.set(id, count)
+    return id % 4 === 0 && count <= 8 ? new Response('Unavailable', { status: 502 }) : Response.json([[[`字幕 ${id}`]]])
+  }
+  const run = async segment => {
+    recovery.begin(segment.id); segment.status = 'translating'
+    try {
+      segment.zh = await networkTranslation(segment.en, new AbortController().signal, () => {})
+      segment.status = 'done'; recovery.succeeded(segment.id); recovered.push(Date.now() - segment.started)
+    } catch { segment.status = 'error'; recovery.failed(segment.id) }
+  }
+  const recovery = createTranslationRecovery({ find: id => segments.get(id), retry: run, online: () => true })
+  t.after(() => recovery.dispose())
+  for (let id = 0; id < 100; id++) setTimeout(() => {
+    const segment = { id, en: `caption ${id}`, status: 'pending', started: Date.now() }; segments.set(id, segment); void run(segment)
+  }, id * 1000)
+  for (let elapsed = 0; elapsed < 120000 && recovered.length < 100; elapsed += 50) { t.mock.timers.tick(50); await flush() }
+  assert.equal(recovered.length, 100)
+  assert.equal(failures, 100); assert.equal(responses, 200)
+  assert.deepEqual([...hosts].sort(), ['translate.google.com', 'translate.googleapis.com'])
+  const maximum = Math.max(...recovered)
+  assert.ok(maximum <= 8000, `Max recovery ${maximum}ms`)
+  console.log(`502 storm: 100 captions at 1/s; ${failures}/${responses} API responses HTTP 502; all 100 recovered automatically; max recovery ${maximum}ms`)
 })

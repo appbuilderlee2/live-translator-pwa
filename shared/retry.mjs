@@ -40,3 +40,23 @@ export function createLimiter(limit = 2) {
     try { signal?.throwIfAborted(); return await operation() } finally { count--; drain() }
   }
 }
+
+export function createRateLimiter(interval = 150) {
+  const gate = createLimiter(1)
+  let previous = -Infinity
+  return async (operation, options = {}) => {
+    await gate(async () => {
+      const delay = Math.min(interval, Math.max(0, interval - (Date.now() - previous)))
+      if (delay) await new Promise((resolve, reject) => {
+        const signal = options.signal
+        const abort = () => { clearTimeout(timer); reject(signal.reason) }
+        const timer = setTimeout(() => { signal?.removeEventListener('abort', abort); resolve() }, delay)
+        signal?.addEventListener('abort', abort, { once: true })
+      })
+      options.signal?.throwIfAborted()
+      previous = Date.now()
+    }, options)
+    options.signal?.throwIfAborted()
+    return operation()
+  }
+}

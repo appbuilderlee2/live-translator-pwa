@@ -6,17 +6,59 @@ import { createSpeechController } from '../src/speech.mjs'
 const normalize = text => text.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').replace(/\s+/g, ' ').trim()
 function harness(t) {
   t.mock.timers.enable({ apis: ['setTimeout'] })
-  const segments = []; let id = 0
+  const segments = []; const previews = []; let id = 0
   const rec = { starts: 0, stops: 0, start() { this.starts++ }, stop() { this.stops++ }, abort() { throw new Error('Must not abort') } }
   const controller = createSpeechController(rec, {
     commit(text, meta) { const key = id++; segments.push({ id: key, text, ...meta }); return key },
     revise(key, text, meta) { const index = segments.findIndex(s => s.id === key); if (!text) segments.splice(index, 1); else Object.assign(segments[index], { text, ...meta }) },
-    preview() {}, state() {}, message() {}
+    preview(text) { previews.push(text) }, state() {}, message() {}
   })
   const emit = (rows, resultIndex = 0) => rec.onresult({ resultIndex, results: rows.map(({ text, final = false, confidence = .01 }) => Object.assign([{ transcript: text, confidence }], { isFinal: final })) })
   controller.start(); t.after(() => controller.dispose())
-  return { rec, controller, segments, emit, text: () => segments.map(s => s.text).join(' ') }
+  return { rec, controller, segments, previews, emit, text: () => segments.map(s => s.text).join(' ') }
 }
+
+for (const text of ['the', 'a', 'um', 'Uh.', 'and', 'can']) test(`filler-only interim is never published or sent for preview translation: ${text}`, async t => {
+  const h = harness(t)
+  h.emit([{ text }]); t.mock.timers.tick(4000)
+  assert.deepEqual(h.segments, []); assert.ok(h.previews.every(text => !text))
+  h.rec.onend(); t.mock.timers.tick(250); await h.controller.finish()
+  assert.deepEqual(h.segments, [])
+})
+
+test('traveler v4 run 3: lone the before the phone question does not become a saved card', t => {
+  const h = harness(t)
+  h.emit([{ text: 'the' }]); t.mock.timers.tick(3804)
+  h.emit([{ text: 'can' }]); t.mock.timers.tick(83)
+  h.emit([{ text: 'can I' }]); t.mock.timers.tick(300)
+  h.emit([{ text: 'can I pay with my' }]); t.mock.timers.tick(186)
+  h.emit([{ text: 'can' }, { text: 'I pay with my' }]); t.mock.timers.tick(562)
+  h.emit([{ text: 'can I pay with my' }, { text: 'mobile' }]); t.mock.timers.tick(665)
+  h.emit([{ text: 'can I pay with my mobile phone', final: true, confidence: .95 }])
+  t.mock.timers.tick(1500)
+  assert.deepEqual(h.segments.map(s => s.text), ['can I pay with my mobile phone'])
+  assert.equal(h.rec.stops, 0)
+})
+
+test('short meaningful interim and a complete refinement starting with a function word are preserved', async t => {
+  const h = harness(t)
+  h.emit([{ text: 'the' }]); t.mock.timers.tick(1500)
+  h.emit([{ text: 'the station', final: true }])
+  h.emit([{ text: 'the station', final: true }, { text: '$25' }]); await h.controller.finish()
+  assert.deepEqual(h.segments.map(s => s.text), ['the station', '$25'])
+})
+
+test('first network error restarts immediately after end; repeats back off until results resume', t => {
+  const h = harness(t)
+  h.rec.onerror({ error: 'network' }); assert.equal(h.rec.starts, 1)
+  h.rec.onend(); assert.equal(h.rec.starts, 2)
+  h.rec.onstart(); h.rec.onerror({ error: 'network' }); h.rec.onend()
+  t.mock.timers.tick(999); assert.equal(h.rec.starts, 2)
+  t.mock.timers.tick(1); assert.equal(h.rec.starts, 3)
+  h.emit([{ text: 'Recognition has recovered', final: true }])
+  h.rec.onerror({ error: 'network' }); h.rec.onend(); assert.equal(h.rec.starts, 4)
+  assert.equal(h.rec.stops, 0)
+})
 
 test('60 second lecture: growing/repartitioned results, corrected prefixes and late finals lose no words', t => {
   const h = harness(t); const finals = []; const expected = []

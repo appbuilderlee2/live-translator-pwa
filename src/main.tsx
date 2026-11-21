@@ -9,6 +9,7 @@ import { createSpeechController } from './speech.mjs'
 import { speakTranslation } from './voice.mjs'
 import { createTranscriptFollower } from './follow.mjs'
 import { createTranslationRecovery, unresolvedTranslations } from './recovery.mjs'
+import { formatTranscript, waitForTranslations } from './export.mjs'
 import '@fontsource/noto-sans-tc/400.css'
 import './style.css'
 import './accessibility.css'
@@ -66,6 +67,7 @@ function App() {
   const mic = micState === 'listening'
   const [interim, setInterim] = useState(''); const [preview, setPreview] = useState(''); const [message, setMessage] = useState('')
   const [translationErrors, setTranslationErrors] = useState<string[]>([])
+  const [exporting, setExporting] = useState(false)
   const [micMessage, setMicMessage] = useState('')
   const [autoSpeak, setAutoSpeak] = useState(() => load('lt-auto-speak', false)); const [font, setFont] = useState(() => { const value = load('lt-font', 28); return typeof value === 'number' ? Math.min(42, Math.max(20, value)) : 28 }); const [localReady, setLocalReady] = useState(false)
   const [voiceChoice, setVoiceChoice] = useState<string>(() => load('lt-voice', 'zh-TW'))
@@ -79,11 +81,26 @@ function App() {
   const active = useRef(new Map<string, AbortController>()); const transcriptElement = useRef<HTMLElement>(null); const segmentsRef = useRef(segments); const historyRef = useRef(history)
   const follower = useRef(createTranscriptFollower())
   const transcriptContent = useRef<HTMLDivElement>(null)
+  const workspaceElement = useRef<HTMLDivElement>(null)
+  const bottomBarElement = useRef<HTMLDivElement>(null)
   const view = useRef(selectedId)
   const [followState, setFollowState] = useState({ following: true, unread: 0 })
   const recovery = useRef<ReturnType<typeof createTranslationRecovery> | null>(null)
   if (!recovery.current) recovery.current = createTranslationRecovery({ find: (id: string) => [...segmentsRef.current, ...historyRef.current.flatMap(s => s.segments)].find(s => s.id === id), retry: (segment: Segment) => void run(segment) })
   autoRef.current = autoSpeak
+  useLayoutEffect(() => {
+    const workspace = workspaceElement.current; const bar = bottomBarElement.current
+    if (!workspace || !bar) return
+    const resize = () => {
+      const panel = workspace.getBoundingClientRect(); const controls = bar.getBoundingClientRect()
+      const bottom = controls.left >= panel.right ? innerHeight : controls.top
+      workspace.style.height = `${Math.max(180, bottom - panel.top - scrollY - 12)}px`
+    }
+    const observer = new ResizeObserver(resize)
+    for (const element of [bar, document.querySelector('header'), document.querySelector('.heading')]) if (element) observer.observe(element)
+    window.addEventListener('resize', resize); resize()
+    return () => { observer.disconnect(); window.removeEventListener('resize', resize) }
+  }, [])
   useEffect(() => { if (composer.current) { composer.current.style.height = 'auto'; composer.current.style.height = `${Math.min(120, composer.current.scrollHeight)}px` } }, [input])
   function changeSegments(fn: (items: Segment[]) => Segment[]) { segmentsRef.current = fn(segmentsRef.current); setSegments(segmentsRef.current) }
   function changeHistory(fn: (items: Session[]) => Session[]) { historyRef.current = fn(historyRef.current); setHistory(historyRef.current) }
@@ -197,14 +214,23 @@ function App() {
     if (transcriptContent.current) observer.observe(transcriptContent.current)
     return () => observer.disconnect()
   }, [shown, preview, interim, selectedId, font])
-  const transcript = shown.map(s => `${new Date(s.timestamp).toLocaleString()}\n${s.en}\n${s.zh || '[等待翻譯 / Pending translation]'}`).join('\n\n')
-  function download() { const url = URL.createObjectURL(new Blob([transcript], { type: 'text/plain;charset=utf-8' })); const a = document.createElement('a'); a.href = url; a.download = 'live-translator-transcript.txt'; a.click(); URL.revokeObjectURL(url) }
+  async function exportedTranscript() {
+    setExporting(true)
+    const id = selectedId
+    try {
+      const items = await waitForTranslations(() => id ? historyRef.current.find(session => session.id === id)?.segments || [] : segmentsRef.current)
+      if (items.some(segment => segment.status !== 'done')) setMessage('部分譯文尚未完成，匯出已清楚標示，英文與警示均已保留。Some translations are still pending and marked in the export; English and warnings are preserved.')
+      return formatTranscript(items, warnings)
+    } finally { setExporting(false) }
+  }
+  async function copyTranscript() { try { await navigator.clipboard.writeText(await exportedTranscript()); setMessage('已複製逐字稿；尚未完成的譯文會明確標示。Transcript copied; any pending translations are explicitly marked.') } catch { setMessage('無法複製，請改用下載。Copy unavailable. Use Download instead.') } }
+  async function download() { const transcript = await exportedTranscript(); const url = URL.createObjectURL(new Blob([transcript], { type: 'text/plain;charset=utf-8' })); const a = document.createElement('a'); a.href = url; a.download = 'live-translator-transcript.txt'; a.click(); URL.revokeObjectURL(url) }
   return languageText(<div className={`app ${largeUI ? 'large-ui' : ''}`} lang="zh-Hant-TW">
     <header><a className="brand" href="/" aria-label="即時翻譯首頁 / Live Translator home"><span className="logo">譯</span><span>Live Translator<small>即時翻譯 · 理解彼此</small></span></a><span className={`connection ${online ? '' : 'offline'}`}><i />{online ? '連線 Online' : '離線 Offline'}</span></header>
     <main>
       <div className="heading"><div><div className="eyebrow">一句一句，拉近距離 · ONE WORD AT A TIME</div><h1>對話，不再有隔閡<span>。</span></h1><p>說英文，即時看繁體中文。<br/>Speak English. Connect in Traditional Chinese.</p></div><span className="decor" aria-hidden="true">你好<span>hello</span></span></div>
-      <div className="workspace">
-        <div className="toolbar"><div className="languages"><span><b>EN</b> 英文 English</span><span className="arrow">→</span><span><b>繁</b> 繁體中文 <small>TW Chinese</small></span></div><button className="quiet" aria-expanded={historyOpen} aria-controls="history" onClick={() => { setHistoryOpen(!historyOpen); setSelectedId(null) }}>◷ <span>歷史 History</span>{history.length > 0 && <em>{history.length}</em>}</button></div>
+      <div className="workspace" ref={workspaceElement}>
+        <div className="toolbar"><div className="languages"><span><b>EN</b> 英文 English</span><span className="arrow">→</span><span><b>繁</b> 繁體中文 <small>TW Chinese</small></span></div><button className="quiet" aria-expanded={historyOpen} aria-controls="history" onClick={() => setHistoryOpen(!historyOpen)}>◷ <span>歷史 History</span>{history.length > 0 && <em>{history.length}</em>}</button></div>
         <div className="sessionbar"><span><i className={mic ? 'live-dot' : ''} />{selected ? '已存對話 / SAVED' : micState === 'requesting' ? '等待麥克風 / REQUESTING MIC' : mic ? '收音中 / LISTENING' : '目前對話 / CURRENT'} <small> / {shown.length} 段 segments</small></span><div className="fontcontrol"><label htmlFor="font">字級 Size</label><input aria-label="字幕字級 / Subtitle font size" id="font" type="range" min="20" max="42" value={font} onChange={e => setFont(Number(e.target.value))} /><span>Aa</span></div></div>
         {historyOpen && <section className="history" id="history"><h2>您的對話 / Your conversations</h2>{history.length === 0 ? <p>尚未儲存對話，請按下方「儲存／新對話」。No saved sessions yet. Save a conversation below.</p> : history.map(session => <div className="history-row" key={session.id}><button onClick={() => setSelectedId(session.id)}>{new Date(session.timestamp).toLocaleString()}<small>{session.segments.length} 段 segments · {session.segments[0]?.en.slice(0, 44)}</small></button><button aria-label={`刪除對話 / Delete session: ${new Date(session.timestamp).toLocaleString()}`} onClick={() => deleteSession(session)}>刪除 Delete</button></div>)}{selected && <button onClick={() => { setSelectedId(null); setHistoryOpen(false) }}>← 返回目前對話 / Back to live session</button>}</section>}
         <section ref={transcriptElement} onScroll={e => setFollowState(follower.current.scroll(e.currentTarget))} className="subtitles" aria-label="雙語字幕 / Bilingual subtitles" tabIndex={0} style={{ '--subtitle-size': `${font}px` } as React.CSSProperties}>
@@ -217,13 +243,13 @@ function App() {
           </div>
         </section>
         {!followState.following && <button className="jump-latest" onClick={() => { if (transcriptElement.current) follower.current.jump(transcriptElement.current); setFollowState({ following: true, unread: 0 }) }}>跳到最新 / Jump to latest · {followState.unread} 則新字幕 / new captions</button>}
-        <div className="transcript-actions"><span>↗ 點譯文即可朗讀 / Tap translation to listen</span><div>{shown.length > 0 && <><button onClick={() => void navigator.clipboard.writeText(transcript).then(() => setMessage('已複製逐字稿。Transcript copied.')).catch(() => setMessage('無法複製，請改用下載。Copy unavailable. Use Download instead.'))}>複製 Copy</button><button onClick={download}>下載 Download .txt</button></>}<button onClick={() => void newSession()} disabled={!segments.length && !interim && !input}>儲存／新對話 Save / New ↗</button></div></div>
+        <div className="transcript-actions"><span>{exporting ? '等待譯文（最多 2 秒）/ Waiting for translations (up to 2s)' : '↗ 點譯文即可朗讀 / Tap translation to listen'}</span><div>{shown.length > 0 && <><button disabled={exporting} onClick={() => void copyTranscript()}>複製 Copy</button><button disabled={exporting} onClick={() => void download()}>下載 Download .txt</button></>}<button onClick={() => void newSession()} disabled={!segments.length && !interim && !input}>儲存／新對話 Save / New ↗</button></div></div>
       </div>
       {!speechSupported && <p className="notice">此瀏覽器不支援語音辨識，請輸入英文，或改用 Chrome、Edge、Safari。Speech recognition isn’t available. Type English below or use Chrome, Edge or Safari.</p>}
       <div className="notifications">{micMessage && <div className="notice" role="alert"><span>{micMessage}</span><button onClick={() => { setSelectedId(null); setHistoryOpen(false); speech.current?.start() }}>重試麥克風 / Retry mic</button></div>}{translationErrors.length > 0 && <div className="notice" role="status"><span>翻譯中斷，英文已保留，將自動重試，也可按「重新翻譯」。Translation interrupted. English saved; retrying automatically, or tap Retry translation.</span><button onClick={() => setTranslationErrors([])} aria-label="關閉訊息 / Dismiss message">×</button></div>}{message && <div className="notice" role="status"><span>{message}</span><button onClick={() => setMessage('')} aria-label="關閉訊息 / Dismiss message">×</button></div>}
       {deleted && <div className="notice" role="status"><span>已刪除對話 / Session deleted. {undoSeconds > 0 ? `至少保留 ${undoSeconds} 秒，之後仍可復原 / At least ${undoSeconds}s remaining; Undo stays available` : '復原保留至關閉 / Undo available until dismissed'}</span><button onClick={undoDelete}>復原 Undo</button><button onClick={() => setDeleted(null)} aria-label="關閉復原訊息 / Dismiss Undo">×</button></div>}</div>
       <div className="sr-only" aria-live="polite" aria-atomic="true">{announcement}</div><div className="sr-only" role="status">{micState === 'retrying' ? '麥克風重新連線中 / Reconnecting microphone' : micState === 'requesting' ? '等待麥克風授權 / Requesting microphone' : mic ? '收音中 / Listening' : '麥克風已關閉 / Microphone off'}. {online ? '連線 / Online' : '離線 / Offline'}</div>
-      <div className="bottom-bar"><form className="inputbox" onSubmit={e => { e.preventDefault(); commit(input); setInput(''); setSelectedId(null); setHistoryOpen(false); void device().then(t => setLocalReady(!!t)) }}><label className="sr-only" htmlFor="english">輸入英文翻譯，長文將自動分段。Type English; long text is split into segments.</label><textarea ref={composer} id="english" rows={2} value={input} onChange={e => setInput(e.target.value)} placeholder="在此輸入英文 / Type English here…" onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.currentTarget.form?.requestSubmit() } }} /><button type="submit" disabled={!input.trim()} aria-label="翻譯輸入文字 / Translate message">↑</button></form>
+      <div className="bottom-bar" ref={bottomBarElement}><form className="inputbox" onSubmit={e => { e.preventDefault(); commit(input); setInput(''); setSelectedId(null); setHistoryOpen(false); void device().then(t => setLocalReady(!!t)) }}><label className="sr-only" htmlFor="english">輸入英文翻譯，長文將自動分段。Type English; long text is split into segments.</label><textarea ref={composer} id="english" rows={2} value={input} onChange={e => setInput(e.target.value)} placeholder="在此輸入英文 / Type English here…" onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.currentTarget.form?.requestSubmit() } }} /><button type="submit" disabled={!input.trim()} aria-label="翻譯輸入文字 / Translate message">↑</button></form>
       <p className="input-hint">按 Enter 翻譯；Shift+Enter 換行。Enter to translate; Shift+Enter for a new line.</p>
       {input.length > 2000 && <p className="input-hint" role="status">共 {input.length.toLocaleString()} 字元，將完整分為 {splitText(input).length} 段。Characters will be split into segments; no text is cut.</p>}
       <div className="controls"><label className="speak-toggle"><input type="checkbox" checked={autoSpeak} onChange={e => { setAutoSpeak(e.target.checked); if (e.target.checked) speak('語音已開啟') }} /><span className="switch"/><span>朗讀譯文<small>Speak translations</small></span></label><div className="mic-group"><button className={`mic ${mic ? 'recording' : ''}`} disabled={!speechSupported} onClick={toggleMic} aria-label={micState !== 'idle' ? '停止收音 / Stop microphone' : '開始收音 / Start microphone'}>{mic ? <span className="stop-icon"/> : <svg width="24" height="28" viewBox="0 0 24 28" fill="none" aria-hidden="true"><rect x="8" y="2" width="8" height="15" rx="4" stroke="currentColor" strokeWidth="2"/><path d="M4 12v2a8 8 0 0016 0v-2M12 22v4M8 26h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>}</button><span>{micState === 'requesting' ? '等待授權 / Requesting microphone…' : mic ? '按一下停止 / Tap to stop' : '按一下開始說英文 / Tap to speak English'}</span></div><div className="privacy"><span>◈ {localReady ? '裝置內翻譯 / On-device' : '即時理解 / In the moment'}</span><small>{localReady ? '可離線使用 / READY OFFLINE' : '不必註冊 / NO ACCOUNT NEEDED'}</small></div></div>
