@@ -39,7 +39,7 @@ async function translateChunks(local, text, signal, context, options) {
     const boundary = /[.!?;]$/.test(chunk.trim()) || index + 1 < chunks.length && speechClauses(`${chunk} ${chunks[index + 1]}`).length > 1
     translated.push(chunks.length > 1 && boundary && /[\p{Script=Han}\d]$/u.test(result) ? `${result}。` : result)
   }
-  const result = medicalTranslation(text, traditional(currency.restore(translated.join(' '))), context)
+  const result = medicalTranslation(text, traditional(currency.restore(translated.join(' ')), text), context)
   if (coverageMismatch(text, result) || negationMismatch(text, result) || medicalWarnings(text, result, context).length) throw new Error('On-device translation did not preserve meaning')
   return readableChinese(text, result)
 }

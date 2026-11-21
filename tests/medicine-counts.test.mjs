@@ -8,6 +8,8 @@ import { translateHandler } from './handler-fixture.mjs'
 
 const cases = [
   ['Take two tablets.', '服用兩種藥錠。', '服用兩顆藥錠。'],
+  ['Take two tablets after breakfast.', '早餐後服用兩片藥錠。', '早餐後服用兩顆藥錠。'],
+  ['Take two tablets.', '服用兩塊 藥錠。', '服用兩顆藥錠。'],
   ['Take 2 tablets.', '服用2種藥錠。', '服用2顆藥錠。'],
   ['Take one pill.', '服用一種藥片。', '服用一顆藥片。'],
   ['Take three capsules.', '服用三種膠囊。', '服用三顆膠囊。'],
@@ -17,6 +19,29 @@ const cases = [
 ]
 const signal = () => new AbortController().signal
 const sse = text => new Response([...text].map(content => `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`).join('') + 'data: [DONE]\n\n')
+
+test('exact clean-reload medical caption preserves tablet count and 140/90 on every path', async t => {
+  const original = fetch; const key = process.env.OPENAI_API_KEY
+  t.after(() => { globalThis.fetch = original; if (key === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = key })
+  const text = 'Take two tablets. My blood pressure is 140/90.'
+  const answer = '服用兩種藥錠。 我的血壓是 140/90。'
+  const expected = '服用兩顆藥錠。 我的血壓是 140/90。'
+  for (const spoken of [false, true]) {
+    for (const provider of ['Google', 'OpenAI']) {
+      if (provider === 'Google') delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = 'test'
+      globalThis.fetch = async (url, options) => {
+        const input = provider === 'Google' ? new URL(url).searchParams.get('q') : JSON.parse(options.body).messages.at(-1).content
+        const output = input.includes('__MEDICINE_TABLET__') ? answer.replace('藥錠', '__MEDICINE_TABLET__') : answer
+        return provider === 'Google' ? Response.json([[[output]]]) : sse(output)
+      }
+      const response = await translateHandler(new Request('http://localhost/api/translate', { method: 'POST', body: JSON.stringify({ text, spoken }) }))
+      assert.equal(response.status, 200); assert.equal(await response.text(), expected)
+    }
+    assert.equal(await localTranslation({ translate: async chunk => /pressure/.test(chunk) ? '我的血壓是 140/90。' : '服用兩種藥丸。' }, text, signal(), [], { spoken }), expected)
+    globalThis.fetch = async () => new Response(answer)
+    assert.equal(await networkTranslation(text, signal(), () => {}, [], { spoken }), expected)
+  }
+})
 
 test('medicine classifier correction is source-counted and preserves kinds, unrelated counts and computers', () => {
   for (const [source, answer, expected] of cases) assert.equal(medicalTranslation(source, answer), expected)

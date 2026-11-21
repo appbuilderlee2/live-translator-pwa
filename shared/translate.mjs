@@ -40,7 +40,7 @@ return async function translateHandler(req) {
         const data = await response.json()
         const result = data[0].map(part => part[0] || '').join('')
         if (!result.trim()) throw new Error('Empty translation')
-        const translated = medicalTranslation(text, traditional(currency.restore(medical.restore(protectedText.restore(result)))), context)
+        const translated = medicalTranslation(text, traditional(currency.restore(medical.restore(protectedText.restore(result))), text), context)
         if (negationMismatch(text, translated)) throw new Error('Translation lost a negation')
         if (medicalWarnings(text, translated, context).length) throw new Error('Translation changed medical meaning')
         return translated
@@ -56,7 +56,7 @@ return async function translateHandler(req) {
     let buffer = ''; let received = false; let completed = false; let translated = ''; let raw = ''
     const stream = new ReadableStream({
       async start(controller) {
-        const output = translationBuffer(chunk => { if (chunk) { const restored = medicalTranslation(text, currency.restore(chunk, false), context); translated += restored; received = true; controller.enqueue(encoder.encode(restored)) } })
+        const output = translationBuffer(chunk => { if (chunk) { const restored = medicalTranslation(text, currency.restore(chunk, false), context); translated += restored; received = true; controller.enqueue(encoder.encode(restored)) } }, text)
         const line = value => {
           if (!value.startsWith('data: ')) return
           const payload = value.slice(6).trim()

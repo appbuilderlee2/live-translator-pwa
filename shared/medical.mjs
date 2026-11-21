@@ -61,7 +61,7 @@ export function medicalWarnings(text, translated, context = []) {
 export function medicalTranslation(text, translated, context = []) {
   if (medicinalTablets(text, context)) translated = translated.replace(/平板(?:電腦|电脑|計算機|计算机)|藥丸|藥物片劑|片劑/g, '藥錠')
   const classifiers = medicineClassifiers(text)
-  translated = translated.replace(/([\d零〇一二三四五六七八九兩两十百千萬億]+(?:[.點][\d零〇一二三四五六七八九兩两]+)?)\s*(?:種類|種|個|片|粒|顆)?\s*(藥錠|藥片|藥丸|膠囊)/g, (match, number, noun) => {
+  translated = translated.replace(/([\d零〇一二三四五六七八九兩两十百千萬億]+(?:[.點][\d零〇一二三四五六七八九兩两]+)?)\s*(?:種類|種|個|片|粒|顆|塊|枚)?\s*(藥錠|藥片|藥丸|膠囊)/g, (match, number, noun) => {
     const choices = classifiers.get(numericValues(number)[0])
     return choices?.size === 1 ? `${number === '二' ? '兩' : number}${[...choices][0]}${noun}` : match
   })

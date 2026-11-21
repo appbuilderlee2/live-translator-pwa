@@ -39,7 +39,7 @@ export function numericMismatch(en, zh) {
 export function recoverSegment(segment) {
   const recovered = { ...segment }
   if (!segment.provisional && !segment.forced && segment.settled === false && !unfinishedSpeech(segment.en)) recovered.settled = true
-  return { ...recovered, zh: translationReady(recovered) ? readableChinese(segment.en, traditional(segment.zh || '')) : '', status: !translationReady(recovered) || segment.status === 'translating' ? 'pending' : segment.status }
+  return { ...recovered, zh: translationReady(recovered) ? readableChinese(segment.en, traditional(segment.zh || '', segment.en)) : '', status: !translationReady(recovered) || segment.status === 'translating' ? 'pending' : segment.status }
 }
 export function retryableSegments(current, history) {
   return [...current, ...history.flatMap(session => session.segments)].filter(s => s.status === 'pending' || s.status === 'error')
