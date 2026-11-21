@@ -110,5 +110,5 @@ test('Taiwan report wording works in complete and split streamed translations, w
   assert.equal(normalizeBusiness('Please take a taxi to the Taipei subway station.'), 'Please take a taxi to the 臺北捷運站.')
   assert.equal(normalizeBusiness('Take the subway.', [{ en: 'I am in Taipei.' }]), 'Take the MRT.')
   assert.equal(normalizeBusiness('Take the London subway.'), 'Take the London subway.')
-  assert.equal(traditional('倫敦地鐵和巴士海峽'), '倫敦地鐵和巴士海峽')
+  assert.equal(traditional('倫敦地鐵和巴士海峽'), '倫敦捷運和巴士海峽')
 })

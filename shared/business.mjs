@@ -37,9 +37,11 @@ export function protectCurrency(text) {
   const value = text.replace(/\bdollars?\b/gi, (word, offset) => {
     const prefix = text.slice(Math.max(0, offset - 100), offset)
     const suffix = text.slice(offset + word.length, offset + word.length + 12)
-    const named = prefix.match(/\b(?:US|U\.S\.|USD|United States|American|Canadian|Australian|Hong Kong|New Zealand|Singapore|Taiwan)(?![a-z])\s*([\w ,.-]*)$/i)
-    const amount = named?.[1].trim() || ''
-    if (named && (!amount || numericPrefix(amount).trim() === amount) || /\$\s*[\d,.]+\s*$/.test(prefix) || /^\s*(?:USD|US\b)/i.test(suffix)) return word
+    const named = [...prefix.matchAll(/\b(?:US|U\.S\.|USD|United States|American|Canadian|Australian|Hong Kong|New Zealand|Singapore|Taiwan)(?![a-z])/gi)].some(match => {
+      const amount = prefix.slice(match.index + match[0].length).trim()
+      return !amount || numericPrefix(amount).trim() === amount
+    })
+    if (named || /\$\s*[\d,.]+\s*$/.test(prefix) || /^\s*(?:USD|US\b)/i.test(suffix)) return word
     protectedBare = true
     return '__CURRENCY_UNIT__'
   })
