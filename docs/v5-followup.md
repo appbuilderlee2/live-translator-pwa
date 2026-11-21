@@ -8,24 +8,26 @@
 - Bare `$` is now neutral in typed input as well as speech. Explicit US/USD and other named currencies remain explicit. A local model that loses the neutral-currency placeholder falls back instead of silently emitting 美元.
 - `Retry-After` supports seconds and HTTP dates, capped at three seconds, while ordinary failures retain backoff and cancellation. Exhausted upstream 429s remain HTTP 429 with a capped header for browser retries. Optional `GOOGLE_TRANSLATE_URL` and `GOOGLE_TRANSLATE_FALLBACK_URL` override the primary/alternate Google-compatible URLs. Default endpoints remain googleapis.com and google.com. These are not independent providers or a reliability guarantee.
 
-## Evidence and remaining defect
+## Evidence and footer follow-up
 
-`/home/ubuntu/browser-checks/v5-ui.mjs` connects to the existing desktop Chrome, resets browser zoom to 100%, asserts a real 375×812 CSS viewport, seeds three saved sessions, and uses 42px subtitles. It checks saved/live/zero/positive-unread jumps, History selection/position preservation, and tooltip hover/focus.
+`/home/ubuntu/browser-checks/v5-ui.mjs` connects to the existing desktop Chrome, resets browser zoom to 100%, asserts a real 375×812 CSS viewport, seeds three saved sessions, and uses 42px subtitles. It checks saved/live/zero/positive-unread jumps, History selection/position preservation, and tooltip hover/focus. The strict footer/composer no-overlap assertion is restored. Additional 1920×993 Large and 852×393 Large landscape checks assert zero rectangle overlap and hit-test every footer action.
 
 Measured paused saved transcript height with the Jump control present:
 
 | Large interface | Caption height | Caption bottom | Jump top | Actions bottom | Composer top |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| On | 200px | 366px | 371px | 520.59px | 515.41px |
-| Off | 275.31px | 441.31px | 446.31px | 558.50px | 571.50px |
+| On | 203.82px | 369.82px | 372.82px | 502.41px | 515.41px |
+| Off | 297.31px | 463.31px | 466.31px | 558.50px | 571.50px |
 
-**Remaining:** Large-interface footer extends about 5.18px behind the composer when paused. The 200px caption area and Jump remain unobscured, but the Download footer label is partly clipped. Three layout attempts did not fully eliminate this; do not describe the whole layout as passing. No further layout attempts were made.
+The previous 5.18px Large-interface footer overlap is fixed by reducing only action-button padding and footer gaps/padding at widths ≤420px. Copy, Download and Save stay in one grid row, labels remain unchanged, and the 44px minimum targets remain. Both portrait modes have 0px overlap and a 13px gap above the composer with Jump present. At 1920×993 Large, captions measure 344.01px with a 13px vertical gap; at 852×393 Large landscape, captions remain 171px with a 17px horizontal gap from the side composer. All footer center hit-tests succeed in desktop and landscape.
 
 Screenshots, visually inspected:
 
 - `/home/ubuntu/screens/v5-mobile-large-on.png`
 - `/home/ubuntu/screens/v5-mobile-large-off.png`
 - `/home/ubuntu/screens/v5-replay-tooltip.png` (Chinese glyphs visible)
+- `/home/ubuntu/screens/v5-desktop-large.png`
+- `/home/ubuntu/screens/v5-landscape.png`
 
 The browser reported no page errors. Local-model/provider tests use fixtures, not the actual Chrome translation model or live OpenAI. No new native-microphone replay was performed. Provider availability during package verification must be reported separately.
 

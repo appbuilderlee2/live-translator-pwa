@@ -123,6 +123,10 @@ header { height: 64px; }
   .transcript-actions { padding-block: 4px; }
   .transcript-actions div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
 }
+@media (max-width: 420px) {
+  .transcript-actions { gap: 2px; padding-block: 2px; }
+  .transcript-actions > div > button { padding: 0 3px; }
+}
 @media (max-height: 500px) and (max-width: 950px) {
   header { display: none; }
   .brand .logo { height: 36px; width: 36px; }
