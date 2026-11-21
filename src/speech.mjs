@@ -62,7 +62,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
   }
   const metadata = (s, start, end, saved = false) => {
     const final = s.finals.find(range => end <= range.end)
-    return { confidence: final?.confidence, numericAlternatives: final?.alternatives || [], provisional: !final || !!final.saved || unfinishedSpeech(slice(s.text, words(s.text), start, end)), forced: !!final?.saved || !final && saved, numericWarnings: [...new Set(s.risks.filter(r => r.start < end && r.end > start).map(r => r.reason))] }
+    return { confidence: final?.confidence, numericAlternatives: final?.alternatives || [], provisional: !final || !!final.saved || !s.flushed && end === words(s.text).length && unfinishedSpeech(slice(s.text, words(s.text), start, end)), forced: !!final?.saved || !final && saved, numericWarnings: [...new Set(s.risks.filter(r => r.start < end && r.end > start).map(r => r.reason))] }
   }
   const publishedWords = s => s.parts.reduce((sum, p) => sum + p.count, 0)
   function settle(s) {
@@ -72,7 +72,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
       const timer = setTimeout(() => {
         timers.delete(timer); part.settleTimer = undefined
         if (!s.parts.includes(part) || part.text !== text || part.provisional || part.forced) return
-        if (part === s.parts.at(-1) && s.awaitingFinal) return
+        if (part === s.parts.at(-1) && s.awaitingFinal && !s.flushed) return
         part.settled = true
         const start = s.parts.slice(0, s.parts.indexOf(part)).reduce((sum, p) => sum + p.count, 0)
         revise(part.id, part.text, { ...metadata(s, start, start + part.count), settled: true })
@@ -150,6 +150,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
   function flush(s) {
     s.flushed = true
     clearTimeout(s.timer); timers.delete(s.timer)
+    reconcile(s, s.text, s.finals)
     const start = publishedWords(s); const end = words(s.text).length
     if (end > start) publish(s, start, end, true)
     for (const part of s.parts) if (part.provisional && !part.forced) {
@@ -158,11 +159,13 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
     settle(s)
   }
   function previewCurrent() { preview(current.text.slice(current.committedCharacters).trim()) }
-  rec.onstart = rec.onaudiostart = () => { failed = false; clearTimeout(retryTimer); retryTimer = undefined; if (wanted) { state('listening'); if (!failures) message('') } }
+  rec.onstart = rec.onaudiostart = () => { failed = false; clearTimeout(retryTimer); retryTimer = undefined; if (wanted) { state('listening'); message('') } }
   rec.onresult = event => {
     message('')
     const incoming = Array.from(event.results, (result, index) => ({ index, text: result[0].transcript.trim(), final: result.isFinal, confidence: result[0].confidence, alternatives: Array.from(result, a => a.transcript) })).filter(r => r.text)
     if (!incoming.length) return
+    failed = false; failures = 0; clearTimeout(retryTimer); retryTimer = undefined
+    if (wanted) state('listening')
     const candidate = normalized(incoming.map(r => r.text).join(' ')); const old = normalized(closing?.text || '')
     const overlap = candidate.slice(0, 10).filter(word => old.slice(0, 10).includes(word)).length
     const matchesClosing = closing?.awaitingFinal && incoming[0].final && ((!closing.flushed && !current.text) || overlap >= Math.min(candidate.length, old.length, 10) * .6)
@@ -204,7 +207,6 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
     if (target.afterRestart && numericValues(rows[0]?.text || '').length) risk(target, 0, words(rows[0].text).length, 'boundary')
     reconcile(target, text, finals)
     if (target === closing) { clearTimeout(target.timer); timers.delete(target.timer); target.timer = later(() => flush(target)); return }
-    failed = false; failures = 0; clearTimeout(retryTimer); retryTimer = undefined
     if (text !== previous) { clearTimeout(pause); pause = setTimeout(() => { stable(current, true); previewCurrent() }, 1200) }
     if (words(text).length - publishedWords(current) > 25) stable(current, false, previous)
     previewCurrent()

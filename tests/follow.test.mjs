@@ -87,3 +87,24 @@ test('a removed reading anchor is replaced, and empty or detached rows do not th
   assert.deepEqual(follower.update(element, ['replacement']), { following: false, unread: 1 })
   assert.equal(element.scrollTop, 100)
 })
+
+test('anchors visible caption content rather than the preceding row padding during large growth', () => {
+  const follower = createTranscriptFollower()
+  let growth = 0
+  const element = { scrollTop: 0, scrollHeight: 4000, clientHeight: 350, getBoundingClientRect: () => ({ top: 0 }), contains: () => true, querySelectorAll: () => rows }
+  const node = (top, bottom) => ({ isConnected: true, getBoundingClientRect: () => ({ top: top + growth - element.scrollTop, bottom: bottom + growth - element.scrollTop }) })
+  const previous = node(0, 125)
+  const previousContent = node(0, 95)
+  const visible = node(125, 600)
+  previous.querySelectorAll = () => [previousContent]
+  visible.querySelectorAll = () => [visible]
+  const rows = [previous, visible]
+  follower.update(element, ['52', '53'])
+  element.scrollTop = 100; follower.scroll(element)
+  const offset = visible.getBoundingClientRect().top
+  growth = 416; element.scrollHeight += growth
+  previousContent.getBoundingClientRect = () => ({ top: -100, bottom: 411 })
+  follower.update(element, ['52', '53'])
+  assert.equal(element.scrollTop, 516)
+  assert.equal(visible.getBoundingClientRect().top, offset)
+})

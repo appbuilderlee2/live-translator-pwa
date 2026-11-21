@@ -28,6 +28,16 @@ export function readableChinese(source = '', text = '', complete = true) {
       result = result.replace(chinese, (_match, last) => `${last}。`)
     }
   }
+  const lectureBoundaries = [
+    [/\bthis is the end of\b/i, /([\p{Script=Han}\d])\s*(?=這是[^。！？；，]{0,24}(?:結束|結尾))/gu],
+    [/\btoday we are discussing\b/i, /([\p{Script=Han}\d])\s*(?=(?:今天)?我們(?:今天)?(?:正在)?討論)/gu],
+    [/\bsolar panels (?:convert|turn)\b/i, /([\p{Script=Han}\d])\s*(?=太陽能(?:電池)?板(?:將|把|可|能))/gu],
+    [/\ba school can\b/i, /([\p{Script=Han}\d])\s*(?=學校(?:可以|能夠|可|能))/gu],
+    [/\bbatteries can\b/i, /([\p{Script=Han}\d])\s*(?=電池(?:可以|能夠|可|能))/gu],
+    [/\bstudents can\b/i, /([\p{Script=Han}\d])\s*(?=學生(?:可以|能夠|可|能))/gu],
+    [/\bcollecting rainwater\b/i, /([\p{Script=Han}\d])\s*(?=收集雨水)/gu]
+  ]
+  for (const [english, chinese] of lectureBoundaries) if (english.test(source)) separate(chinese)
   if (complete && /[\p{Script=Han}\d]$/u.test(result)) result += /\?\s*$/.test(source) ? '？' : /!\s*$/.test(source) ? '！' : '。'
   return result
 }

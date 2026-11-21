@@ -11,7 +11,11 @@ export function createTranscriptFollower() {
   let anchor
   const remember = element => {
     const top = element.getBoundingClientRect?.().top || 0
-    const row = [...element.querySelectorAll?.('.segment') || []].find(row => row.getBoundingClientRect().bottom > top + (element.clientTop || 0))
+    const visible = [...element.querySelectorAll?.('.segment') || []].flatMap(row => row.querySelectorAll ? [...row.querySelectorAll('.segment-meta, .quality, .english, .chinese')] : [row]).filter(row => {
+      const bounds = row.getBoundingClientRect()
+      return bounds.bottom > top + (element.clientTop || 0) && bounds.bottom > bounds.top && bounds.top < top + element.clientHeight
+    })
+    const row = visible.find(row => row.getBoundingClientRect().top >= top + (element.clientTop || 0)) || visible[0]
     anchor = row ? { row, offset: row.getBoundingClientRect().top - top } : undefined
   }
   return {
