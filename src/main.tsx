@@ -96,19 +96,22 @@ function App() {
     const workspace = workspaceElement.current; const bar = bottomBarElement.current
     if (!workspace || !bar) return
     const app = workspace.closest('.app')
+    const notifications = document.querySelector('.notifications')
     let fixedHeight = 0
     const resize = () => {
       const panel = workspace.getBoundingClientRect(); const controls = bar.getBoundingClientRect()
+      const notices = notifications?.getBoundingClientRect().height || 0
+      const notificationSpace = notices ? notices + 24 : 0
       if (!app?.classList.contains('reading-flow')) fixedHeight = controls.height
       const chrome = [...workspace.children].filter(child => child.matches('.toolbar, .sessionbar, .transcript-actions')).reduce((height, child) => height + child.getBoundingClientRect().height, 2)
-      const cramped = innerHeight - panel.top - scrollY - fixedHeight - chrome - 12 < 180
+      const cramped = innerHeight - panel.top - scrollY - fixedHeight - chrome - notificationSpace - 12 < 180
       app?.classList.toggle('reading-flow', cramped)
       if (cramped || matchMedia('(max-height: 600px)').matches) { workspace.style.height = 'auto'; return }
       const bottom = controls.left >= panel.right ? innerHeight : controls.top
-      workspace.style.height = `${Math.max(180, bottom - panel.top - scrollY - 12)}px`
+      workspace.style.height = `${Math.max(180, bottom - panel.top - scrollY - notificationSpace - 12)}px`
     }
     const observer = new ResizeObserver(resize)
-    for (const element of [bar, document.querySelector('header'), document.querySelector('.heading')]) if (element) observer.observe(element)
+    for (const element of [bar, document.querySelector('header'), document.querySelector('.heading'), notifications]) if (element) observer.observe(element)
     for (const element of workspace.children) if (!element.classList.contains('subtitles')) observer.observe(element)
     window.addEventListener('resize', resize); resize()
     return () => { observer.disconnect(); window.removeEventListener('resize', resize) }

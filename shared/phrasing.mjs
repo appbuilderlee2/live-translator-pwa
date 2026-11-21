@@ -5,6 +5,7 @@ export function speechClauses(text) {
 }
 
 export function readableChinese(source = '', text = '', complete = true) {
+  if (/[$€£]|\b(?:dollars?|USD|TWD|euros?|yen)\b/i.test(source)) text = text.replace(/(\d)[，,]\s*(?=(?:美|加|澳|港|新臺|新台|日|歐)?元)/g, '$1')
   text = text.replace(/(^|[，。；！？])\s*請。\s*(?=[\p{Script=Han}])/gu, '$1請')
   const sentences = source.match(/[.!?](?:\s|$)/g)?.length || 0
   if (sentences < 2 && (source.match(/\b[a-z]+\b/gi)?.length || 0) < 25) return text

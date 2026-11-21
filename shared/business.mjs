@@ -60,3 +60,8 @@ export function currencySource(text, spoken = false) {
     return `${value}${/^\s*dollars?\b/i.test(after) ? '' : ' dollars'}`
   })
 }
+
+export function literalCurrency(text) {
+  const match = currencySource(text).match(/^([+-]?\d+(?:,\d{3})*(?:\.\d+)?)\s+dollars?[.!?]?$/i)
+  return match ? `${match[1]} 元` : null
+}

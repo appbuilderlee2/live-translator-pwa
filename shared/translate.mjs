@@ -1,9 +1,10 @@
-import { meetingPrompt, normalizeBusiness, protectNames, protectCurrency, currencySource } from './business.mjs'
+import { meetingPrompt, normalizeBusiness, protectNames, protectCurrency, currencySource, literalCurrency } from './business.mjs'
 import { traditional, translationBuffer } from './traditional.mjs'
 import { withTimeout } from './retry.mjs'
 import { createProviderGateway, providerResponse } from './provider.mjs'
 import { negationMismatch, normalizeNegations } from './negation.mjs'
 import { medicalPrompt, normalizeMedical, protectMedical, medicalTranslation, medicalWarnings } from './medical.mjs'
+import { seatingMismatch } from './coverage.mjs'
 
 const headers = { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }
 export function createTranslateHandler(options = {}) {
@@ -22,6 +23,8 @@ return async function translateHandler(req) {
     context = body.context || []
   } catch { return new Response('Provide text between 1 and 2000 characters and at most two context segments.', { status: 400 }) }
   if (preview) return Response.json({ error: 'previews_disabled' }, { status: 409, headers: { 'Cache-Control': 'no-store' } })
+  const literal = literalCurrency(text)
+  if (literal) return new Response(literal, { headers })
   const env = typeof process !== 'undefined' ? process.env : {}
   const source = currencySource(text, spoken)
   const currency = protectCurrency(normalizeNegations(normalizeBusiness(source, context)))
@@ -43,6 +46,7 @@ return async function translateHandler(req) {
         const translated = medicalTranslation(text, traditional(currency.restore(medical.restore(protectedText.restore(result))), text), context)
         if (negationMismatch(text, translated)) throw new Error('Translation lost a negation')
         if (medicalWarnings(text, translated, context).length) throw new Error('Translation changed medical meaning')
+        if (seatingMismatch(text, translated)) throw new Error('Translation omitted source meaning')
         return translated
       })
       return new Response(result, { headers })
@@ -81,6 +85,7 @@ return async function translateHandler(req) {
           currency.restore(raw)
           if (negationMismatch(text, translated)) throw new Error('Translation lost a negation')
           if (medicalWarnings(text, translated, context).length) throw new Error('Translation changed medical meaning')
+          if (seatingMismatch(text, translated)) throw new Error('Translation omitted source meaning')
           controller.close()
         } catch (error) { if (typeof error.code !== 'string') gateway.invalid(error, endpoint, started); void reader.cancel(error).catch(() => {}); controller.error(error) } finally { reader.releaseLock() }
       },

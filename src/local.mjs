@@ -1,4 +1,4 @@
-import { normalizeBusiness, currencySource, protectCurrency } from '../shared/business.mjs'
+import { normalizeBusiness, currencySource, protectCurrency, literalCurrency } from '../shared/business.mjs'
 import { normalizeMedical, medicalTranslation, medicalWarnings } from '../shared/medical.mjs'
 import { negationMismatch } from '../shared/negation.mjs'
 import { createLimiter, withTimeout } from '../shared/retry.mjs'
@@ -47,6 +47,8 @@ async function translateChunks(local, text, signal, context, options) {
 export async function translateWithFallback(local, text, signal, update, context = [], options = {}, fallback = networkTranslation) {
   signal.throwIfAborted()
   if (options.preview) throw Object.assign(new Error('Translation previews disabled'), { retryable: false, code: 'previews_disabled' })
+  const literal = literalCurrency(text)
+  if (literal) { update(literal); return literal }
   if (local) {
     try {
       const result = await localTranslation(local, text, signal, context, options)

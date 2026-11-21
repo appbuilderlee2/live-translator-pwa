@@ -3,6 +3,7 @@ import { traditional } from '../shared/traditional.mjs'
 import { readableChinese } from '../shared/phrasing.mjs'
 import { negationMismatch } from '../shared/negation.mjs'
 import { medicalTranslation, medicalWarnings } from '../shared/medical.mjs'
+import { seatingMismatch } from '../shared/coverage.mjs'
 
 export async function networkTranslation(text, signal, update, context = [], options = {}) {
     if (options.preview) throw Object.assign(new Error('Server previews disabled'), { retryable: false, code: 'previews_disabled' })
@@ -27,6 +28,7 @@ export async function networkTranslation(text, signal, update, context = [], opt
     if (!result.trim()) throw Object.assign(new Error('未收到譯文，請重新翻譯。No translation received. Please retry.'), { code: 'translation_invalid' })
     if (negationMismatch(text, traditional(result))) throw Object.assign(new Error('否定詞可能遺漏或範圍不符 / Negation may be missing or misplaced'), { code: 'translation_invalid' })
     if (medicalWarnings(text, traditional(result), context).length) throw Object.assign(new Error('醫療用語可能誤譯 / Medical meaning may be mistranslated'), { code: 'translation_invalid' })
+    if (seatingMismatch(text, traditional(result))) throw Object.assign(new Error('譯文可能遺漏原意 / Translation may omit source meaning'), { code: 'translation_invalid' })
     const translated = readableChinese(text, medicalTranslation(text, traditional(result, text), context))
     update(translated)
     return translated
