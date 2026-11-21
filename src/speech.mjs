@@ -8,7 +8,13 @@ function sentences(text) {
   return text.split(/(?<=[.!?])\s+/).flatMap(s => splitText(s)).flatMap(s => {
     const tokens = words(s)
     if (tokens.length <= 40) return [s]
-    return Array.from({ length: Math.ceil(tokens.length / 30) }, (_, i) => slice(s, tokens, i * 30, Math.min((i + 1) * 30, tokens.length)))
+    const chunks = []
+    for (let start = 0; start < tokens.length;) {
+      let end = Math.min(start + 30, tokens.length)
+      if (end < tokens.length && /^please[,;:]?$/i.test(tokens[end - 1][0])) end--
+      chunks.push(slice(s, tokens, start, end)); start = end
+    }
+    return chunks
   }).filter(Boolean)
 }
 function related(left, right) {
@@ -107,6 +113,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
         const completed = sentences(slice(text, tokens, offset, final.end))[0]
         if (completed && words(completed).length <= 40) end = offset + words(completed).length
       }
+      if (end > offset && end < tokens.length && /^please[,;:]?$/i.test(tokens[end - 1][0])) end--
       const replacement = slice(text, tokens, offset, end)
       const meta = metadata(s, offset, end, part.forced)
       const extended = final?.saved && normalized(replacement).slice(0, part.count).join() === normalized(part.text).join()

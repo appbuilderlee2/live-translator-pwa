@@ -5,6 +5,7 @@ export function speechClauses(text) {
 }
 
 export function readableChinese(source = '', text = '', complete = true) {
+  text = text.replace(/(^|[，。；！？])\s*請。\s*(?=[\p{Script=Han}])/gu, '$1請')
   const sentences = source.match(/[.!?](?:\s|$)/g)?.length || 0
   if (sentences < 2 && (source.match(/\b[a-z]+\b/gi)?.length || 0) < 25) return text
   let result = text
@@ -38,6 +39,9 @@ export function readableChinese(source = '', text = '', complete = true) {
     [/\bcollecting rainwater\b/i, /([\p{Script=Han}\d])\s*(?=收集雨水)/gu]
   ]
   for (const [english, chinese] of lectureBoundaries) if (english.test(source)) separate(chinese)
+  if (/\b(?:do not|don't|never) take more than\b/i.test(source)) separate(/([\p{Script=Han}])[，,\s]*(?=\d+\s*小時內(?:不要|不可|不得|勿|別))/gu)
+  if (/\bbefore taking (?:this |the )?medicine\b/i.test(source)) separate(/([\p{Script=Han}\d])[，,\s]*(?=(?:服用(?:此|本|這種|這個)?藥(?:物)?前|用藥前))/gu)
+  if (/\bI want to make sure\b/i.test(source)) separate(/([\p{Script=Han}\d])[，,\s]*(?=我想(?:要)?(?:確保|確認))/gu)
   if (complete && /[\p{Script=Han}\d]$/u.test(result)) result += /\?\s*$/.test(source) ? '？' : /!\s*$/.test(source) ? '！' : '。'
   return result
 }
