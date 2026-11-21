@@ -22,7 +22,8 @@ export function localChunks(text) {
 }
 
 const localLimited = createLimiter(1)
-export function localTranslation(local, text, signal, context = [], options = {}) {
+export async function localTranslation(local, text, signal, context = [], options = {}) {
+  if (options.preview) throw Object.assign(new Error('Translation previews disabled'), { retryable: false, code: 'previews_disabled' })
   return localLimited(() => translateChunks(local, text, signal, context, options), { signal })
 }
 
@@ -42,6 +43,7 @@ async function translateChunks(local, text, signal, context, options) {
 
 export async function translateWithFallback(local, text, signal, update, context = [], options = {}, fallback = networkTranslation) {
   signal.throwIfAborted()
+  if (options.preview) throw Object.assign(new Error('Translation previews disabled'), { retryable: false, code: 'previews_disabled' })
   if (local) {
     try {
       const result = await localTranslation(local, text, signal, context, options)

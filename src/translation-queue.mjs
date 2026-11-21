@@ -1,4 +1,6 @@
-/** @template {{id: string, en: string, timestamp: number, status: string}} T
+import { translationReady } from './transcript.mjs'
+
+/** @template {{id: string, en: string, timestamp: number, status: string, provisional?: boolean, forced?: boolean, settled?: boolean}} T
  * @param {{find: (id: string) => T | undefined, execute: (segment: T) => Promise<unknown>, online?: () => boolean, storage?: Pick<Storage, 'getItem' | 'setItem'>, changed?: (state: {pending: number, retryAt: number, reason: string}) => void}} options
  */
 export function createTranslationQueue({ find, execute, online = () => navigator.onLine, storage, changed = () => {} }) {
@@ -18,8 +20,8 @@ export function createTranslationQueue({ find, execute, online = () => navigator
   async function pump() {
     if (disposed || active || !online()) return
     if (Math.max(nextAt, stored()) > Date.now()) { schedule(); return }
-    const candidates = [...entries.keys()].filter(id => entries.get(id).retryAt <= Date.now()).map(find).filter(segment => segment && segment.status !== 'done').sort((a, b) => a.timestamp - b.timestamp)
-    for (const id of entries.keys()) if (!find(id) || find(id).status === 'done') entries.delete(id)
+    const candidates = [...entries.keys()].filter(id => entries.get(id).retryAt <= Date.now()).map(find).filter(segment => segment && translationReady(segment) && segment.status !== 'done').sort((a, b) => a.timestamp - b.timestamp)
+    for (const id of entries.keys()) if (!find(id) || !translationReady(find(id)) || find(id).status === 'done') entries.delete(id)
     const segment = candidates[0]
     if (!segment) { schedule(); return }
     active = segment.id
@@ -41,7 +43,7 @@ export function createTranslationQueue({ find, execute, online = () => navigator
     } finally { active = undefined; persist(); schedule() }
   }
   return {
-    enqueue(id) { if (disposed) return; const segment = find(id); if (segment && segment.status !== 'done' && !entries.has(id)) entries.set(id, { retryAt: 0, attempts: 0 }); schedule() },
+    enqueue(id) { if (disposed) return; const segment = find(id); if (segment && translationReady(segment) && segment.status !== 'done' && !entries.has(id)) entries.set(id, { retryAt: 0, attempts: 0 }); schedule() },
     wake: schedule,
     dispose() { disposed = true; clearTimeout(timer); entries.clear() }
   }

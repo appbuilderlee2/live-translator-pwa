@@ -4,7 +4,7 @@ import { negationMismatch } from '../shared/negation.mjs'
 import { medicalWarnings } from '../shared/medical.mjs'
 import { translateWithFallback } from './local.mjs'
 import { networkTranslation } from './network.mjs'
-import { numericMismatch, splitText, recoverSegment, retryableSegments, previousContext } from './transcript.mjs'
+import { numericMismatch, splitText, recoverSegment, retryableSegments, previousContext, translationReady } from './transcript.mjs'
 import { createSpeechController } from './speech.mjs'
 import { speakTranslation } from './voice.mjs'
 import { createTranscriptFollower, jumpLabel } from './follow.mjs'
@@ -15,8 +15,8 @@ import '@fontsource/noto-sans-tc/400.css'
 import './style.css'
 import './accessibility.css'
 
-type Segment = { id: string; en: string; zh: string; timestamp: number; confidence?: number; forced?: boolean; provisional?: boolean; spoken?: boolean; numericWarnings?: string[]; status: 'pending' | 'translating' | 'done' | 'error' }
-type SpeechMetadata = Pick<Segment, 'confidence' | 'forced' | 'provisional' | 'spoken' | 'numericWarnings'>
+type Segment = { id: string; en: string; zh: string; timestamp: number; confidence?: number; forced?: boolean; provisional?: boolean; settled?: boolean; spoken?: boolean; numericWarnings?: string[]; status: 'pending' | 'translating' | 'done' | 'error' }
+type SpeechMetadata = Pick<Segment, 'confidence' | 'forced' | 'provisional' | 'settled' | 'spoken' | 'numericWarnings'>
 type Session = { id: string; timestamp: number; segments: Segment[] }
 type Recognition = { start(): void; stop(): void }
 type Translator = { translate(text: string): Promise<string> }
@@ -66,7 +66,7 @@ function App() {
   const selected = history.find(s => s.id === selectedId)
   const [online, setOnline] = useState(navigator.onLine); const [micState, setMicState] = useState('idle'); const [input, setInput] = useState('')
   const mic = micState === 'listening'
-  const [interim, setInterim] = useState(''); const [preview, setPreview] = useState(''); const [message, setMessage] = useState('')
+  const [interim, setInterim] = useState(''); const [message, setMessage] = useState('')
   const [translationErrors, setTranslationErrors] = useState<string[]>([])
   const [providerState, setProviderState] = useState({ pending: 0, retryAt: 0, reason: '' })
   const [exporting, setExporting] = useState(false)
@@ -131,16 +131,16 @@ function App() {
   useEffect(() => { setTranslationErrors(ids => { const remaining = unresolvedTranslations(ids, segments, history); return remaining.length === ids.length ? ids : remaining }) }, [segments, history])
   function run(segment: Segment) { queue.current?.enqueue(segment.id) }
   async function execute(segment: Segment) {
-    if (active.current.has(segment.id)) return
+    if (active.current.has(segment.id) || !translationReady(segment)) return
     const controller = new AbortController(); active.current.set(segment.id, controller)
     const update = (patch: Partial<Segment>) => {
-      const apply = (items: Segment[]) => items.map(s => s.id === segment.id && s.en === segment.en ? { ...s, ...patch } : s)
+      const apply = (items: Segment[]) => items.map(s => s.id === segment.id && s.en === segment.en && translationReady(s) ? { ...s, ...patch } : s)
       changeSegments(apply)
       changeHistory(items => items.map(session => ({ ...session, segments: apply(session.segments) })))
     }
     const context = previousContext(segment.id, segmentsRef.current, historyRef.current)
     update({ status: 'translating' })
-    try { const zh = await translate(segment.en, controller.signal, zh => update({ zh }), context, { spoken: segment.spoken }); update({ zh, status: 'done' }); setAnnouncement(`${segment.en}. ${zh}`); if (autoRef.current && segmentsRef.current.some(s => s.id === segment.id)) speakRef.current(zh) }
+    try { const zh = await translate(segment.en, controller.signal, zh => update({ zh }), context, { spoken: segment.spoken }); controller.signal.throwIfAborted(); update({ zh, status: 'done' }); setAnnouncement(`${segment.en}. ${zh}`); if (autoRef.current && segmentsRef.current.some(s => s.id === segment.id)) speakRef.current(zh) }
     catch (error) { if (!controller.signal.aborted) { const pending = !navigator.onLine; update({ status: pending ? 'pending' : 'error' }); setAnnouncement(pending ? '英文已保留，連線後自動翻譯。English saved; translation resumes online.' : '翻譯延遲，英文已保留，將自動重試。Translation delayed; English saved; retrying automatically.'); if (!pending) setTranslationErrors(ids => ids.includes(segment.id) ? ids : [...ids, segment.id]) } throw error }
     finally { active.current.delete(segment.id); const latest = [...segmentsRef.current, ...historyRef.current.flatMap(s => s.segments)].find(s => s.id === segment.id); if (latest && latest.en !== segment.en) void run(latest) }
   }
@@ -153,11 +153,13 @@ function App() {
       firstId ??= segment.id
       changeSegments(items => [...items, segment]); void run(segment)
     }
-    setInterim(''); setPreview('')
+    setInterim('')
     return firstId
   }
   function reviseSpeech(id: string, en: string, metadata: SpeechMetadata) {
-    const apply = (items: Segment[]) => items.flatMap(s => s.id !== id ? [s] : !en ? [] : [{ ...s, en, ...metadata, ...(s.en !== en ? { zh: '', status: 'pending' as const } : {}) }])
+    const previous = [...segmentsRef.current, ...historyRef.current.flatMap(s => s.segments)].find(s => s.id === id)
+    if (previous?.en !== en || !translationReady(metadata)) active.current.get(id)?.abort()
+    const apply = (items: Segment[]) => items.flatMap(s => s.id !== id ? [s] : !en ? [] : [{ ...s, en, ...metadata, ...(s.en !== en || !translationReady(metadata) ? { zh: '', status: 'pending' as const } : {}) }])
     changeSegments(apply); changeHistory(items => items.map(s => ({ ...s, segments: apply(s.segments) })))
     const segment = [...segmentsRef.current, ...historyRef.current.flatMap(s => s.segments)].find(s => s.id === id)
     if (segment?.status === 'pending') void run(segment)
@@ -175,9 +177,6 @@ function App() {
     return () => { window.removeEventListener('online', reconnect); window.removeEventListener('offline', disconnect); window.removeEventListener('storage', storageChanged); queue.current?.dispose(); for (const controller of active.current.values()) controller.abort() }
   }, [])
   useEffect(() => {
-    setPreview('')
-  }, [interim])
-  useEffect(() => {
     const Constructor = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!Constructor) return
     const controller = createSpeechController(new Constructor(), { commit: (text: string, metadata: SpeechMetadata) => commitRef.current(text, { ...metadata, spoken: true }), revise: (id: string, text: string, metadata: SpeechMetadata) => reviseRef.current(id, text, metadata), preview: setInterim, state: setMicState, message: setMicMessage })
@@ -193,7 +192,7 @@ function App() {
     follower.current = createTranscriptFollower()
     const saved = segmentsRef.current
     if (saved.length) changeHistory(items => [{ id: uid(), timestamp: Date.now(), segments: saved }, ...items])
-    changeSegments(() => []); setInput(''); setInterim(''); setPreview(''); setSelectedId(null); setHistoryOpen(false); setMessage('')
+    changeSegments(() => []); setInput(''); setInterim(''); setSelectedId(null); setHistoryOpen(false); setMessage('')
   }
   function deleteSession(session: Session) {
     setDeleted(session); changeHistory(items => items.filter(s => s.id !== session.id)); if (selectedId === session.id) setSelectedId(null)
@@ -215,7 +214,7 @@ function App() {
     observer.observe(element)
     if (transcriptContent.current) observer.observe(transcriptContent.current)
     return () => observer.disconnect()
-  }, [shown, preview, interim, selectedId, font])
+  }, [shown, interim, selectedId, font])
   async function exportedTranscript() {
     setExporting(true)
     const id = selectedId
@@ -240,10 +239,10 @@ function App() {
         <section ref={transcriptElement} onScroll={e => setFollowState(follower.current.scroll(e.currentTarget))} className="subtitles" aria-label="雙語字幕 / Bilingual subtitles" tabIndex={0} style={{ '--subtitle-size': `${font}px` } as React.CSSProperties}>
           <div ref={transcriptContent}>
           {!shown.length && !interim && <div className="empty"><div className="wave" aria-hidden="true">{[14, 26, 40, 22, 50, 32, 18, 36, 24].map((h, i) => <i key={i} style={{ height: h }} />)}</div><h2>{micState === 'requesting' ? '等待麥克風授權 / Requesting microphone…' : mic ? '已開始收音，請說話。You’re on. Say hello.' : '從一句話，開始理解。Start a conversation.'}</h2><p>{micState === 'requesting' ? '請在瀏覽器提示中選擇「允許」。Allow microphone access in your browser.' : mic ? '英文與中文翻譯將顯示在這裡。Your words and translation appear here.' : '按麥克風並允許權限，或在下方輸入英文。\nTap the microphone and allow access, or type English below.'}</p><span className="empty-tag">英文 ENGLISH <span>→</span> 繁體中文</span></div>}
-          {shown.map((s, index) => <article className="segment" key={s.id}><div className="segment-meta"><span>{String(index + 1).padStart(2, '0')}</span><time>{new Date(s.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time><span>{s.status === 'pending' ? '已保留，等待連線 / Waiting for connection' : s.status === 'translating' ? '翻譯中 / Translating…' : s.status === 'error' ? '翻譯中斷 / Interrupted' : '✓ 翻譯完成 / Translated'}</span></div>
+          {shown.map((s, index) => <article className="segment" key={s.id}><div className="segment-meta"><span>{String(index + 1).padStart(2, '0')}</span><time>{new Date(s.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time><span>{!translationReady(s) ? '等待最終辨識 / Awaiting final recognition' : s.status === 'pending' ? '已保留，等待連線 / Waiting for connection' : s.status === 'translating' ? '翻譯中 / Translating…' : s.status === 'error' ? '翻譯中斷 / Interrupted' : '✓ 翻譯完成 / Translated'}</span></div>
             <div className="quality">{!s.provisional && !s.forced && s.confidence !== undefined && <span>辨識信心 / Confidence: {Math.round(s.confidence * 100)}%</span>}{s.forced && <span>暫存語音，尚未收到最終辨識 / Saved speech; final recognition unavailable</span>}{warnings(s, shown.slice(Math.max(0, index - 2), index)).length > 0 && <span className="check">⚠ 請核對 Check: {warnings(s, shown.slice(Math.max(0, index - 2), index)).join('；')}</span>}</div>
-            <p className="english" lang="en">{s.en}</p><span className="translation-replay"><button className="chinese" lang="zh-TW" aria-label={`朗讀譯文 / Read translation: ${s.zh}`} aria-describedby={`replay-${s.id}`} onClick={() => speak(s.zh)} disabled={!s.zh}>{s.zh || (s.status === 'pending' ? '等待連線…' : s.status === 'error' ? '翻譯暫時無法使用' : '翻譯中…')}<span> ↗</span></button><span className="translation-tooltip" id={`replay-${s.id}`} role="tooltip" lang="zh-Hant-TW">朗讀譯文 / Replay translation</span></span>{(s.status === 'pending' || s.status === 'error') && <button className="retry" onClick={() => void run(s)}>↻ 重新翻譯 / Retry translation</button>}</article>)}
-          {interim && !selected && <article className="segment preview"><div className="segment-meta">即時預覽 / LIVE PREVIEW</div><p className="english" lang="en">{interim}</p><p className="chinese" lang="zh-TW">{preview || '…'}</p></article>}
+            <p className="english" lang="en">{s.en}</p>{translationReady(s) && <><span className="translation-replay"><button className="chinese" lang="zh-TW" aria-label={`朗讀譯文 / Read translation: ${s.zh}`} aria-describedby={`replay-${s.id}`} onClick={() => speak(s.zh)} disabled={!s.zh}>{s.zh || (s.status === 'pending' ? '等待連線…' : s.status === 'error' ? '翻譯暫時無法使用' : '翻譯中…')}<span> ↗</span></button><span className="translation-tooltip" id={`replay-${s.id}`} role="tooltip" lang="zh-Hant-TW">朗讀譯文 / Replay translation</span></span>{(s.status === 'pending' || s.status === 'error') && <button className="retry" onClick={() => void run(s)}>↻ 重新翻譯 / Retry translation</button>}</>}</article>)}
+          {interim && !selected && <article className="segment preview"><div className="segment-meta">即時預覽 / LIVE PREVIEW</div><p className="english" lang="en">{interim}</p></article>}
           </div>
         </section>
         <div className="transcript-actions">{jump && <button className="jump-latest" onClick={() => { if (transcriptElement.current) follower.current.jump(transcriptElement.current); setFollowState({ following: true, unread: 0 }) }}>{jump}</button>}<span>{exporting ? '等待譯文（最多 2 秒）/ Waiting for translations (up to 2s)' : '↗ 點譯文即可朗讀 / Tap translation to listen'}</span><div>{shown.length > 0 && <><button disabled={exporting} onClick={() => void copyTranscript()}>複製 Copy</button><button disabled={exporting} onClick={() => void download()}>下載 Download .txt</button></>}<button onClick={() => void newSession()} disabled={!segments.length && !interim && !input}>儲存／新增 Save/New</button></div></div>

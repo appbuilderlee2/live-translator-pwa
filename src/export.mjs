@@ -1,3 +1,5 @@
+import { translationReady } from './transcript.mjs'
+
 /** @template {{ status: string }} T
  * @param {() => T[]} read
  */
@@ -16,8 +18,8 @@ export async function waitForTranslations(read, { timeout = 2000, interval = 50 
 export function formatTranscript(segments, warnings = () => []) {
   return segments.map((segment, index) => {
     const lines = [new Date(segment.timestamp).toLocaleString(), segment.en]
-    if (segment.status !== 'done') lines.push('[翻譯尚未完成 / Translation still pending; English preserved]')
-    if (segment.zh) lines.push(segment.zh)
+    if (segment.status !== 'done' || !translationReady(segment)) lines.push('[翻譯尚未完成 / Translation still pending; English preserved]')
+    if (segment.zh && translationReady(segment)) lines.push(segment.zh)
     if (!segment.provisional && !segment.forced && segment.confidence !== undefined) lines.push(`辨識信心 / Confidence: ${Math.round(segment.confidence * 100)}%`)
     if (segment.forced) lines.push('暫存語音，尚未收到最終辨識 / Saved speech; final recognition unavailable')
     else if (segment.provisional) lines.push('暫定字幕 / Provisional speech')
