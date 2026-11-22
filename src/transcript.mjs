@@ -9,40 +9,6 @@ export function translationReady(segment) {
   return !segment.provisional && !segment.forced && segment.settled !== false
 }
 
-function captionBoundary(segment) {
-  if (segment.recognitionBoundary) return segment.recognitionBoundary
-  const evidence = segment.recognitionEvidence
-  if (!Array.isArray(evidence?.range) || !Array.isArray(evidence.finalRanges)) return
-  let start = 0
-  for (const final of evidence.finalRanges) {
-    if (final?.end >= evidence.range[1]) return final.saved ? undefined : { session: evidence.session, range: evidence.range, finalRange: [start, final.end] }
-    start = final?.end
-  }
-}
-
-/** @template {{ en: string, zh: string, status: string }} T
- * @param {T[]} segments
- * @returns {T[]}
- */
-export function displayTranscript(segments) {
-  let displayed = segments
-  for (let index = 0; index < segments.length - 1; index++) {
-    const previous = segments[index]; const next = segments[index + 1]
-    if (previous.status !== 'done' || next.status !== 'done' || !translationReady(previous) || !translationReady(next)) continue
-    const left = captionBoundary(previous); const right = captionBoundary(next)
-    if (!left?.session || left.session !== right?.session || !Array.isArray(left.range) || !Array.isArray(right.range)) continue
-    if (!(left.range[0] >= 0 && left.range[0] < left.range[1] && left.range[1] === right.range[0] && right.range[0] < right.range[1])) continue
-    if (!Array.isArray(left.finalRange) || !Array.isArray(right.finalRange)) continue
-    if (!(left.finalRange[0] >= 0 && left.finalRange[0] <= left.range[0] && left.finalRange[1] >= right.range[1] && left.finalRange[0] === right.finalRange[0] && left.finalRange[1] === right.finalRange[1])) continue
-    if (!/\b(?:make|makes|made|making)\s+(?:the|this|that|these|those|our|your|their|its|my|an?)\s+[a-z][a-z'-]*$/i.test(previous.en.trim())) continue
-    if (!/^(?:easier|harder|simpler|safer|more\s+(?:difficult|reliable|efficient|effective))\s+to\s+[a-z]/i.test(next.en.trim())) continue
-    if (!/(?:使|讓)[\p{Script=Han}\d]{1,16}。$/u.test(previous.zh) || !/^(?:更|比較)/u.test(next.zh)) continue
-    if (displayed === segments) displayed = segments.slice()
-    displayed[index] = { ...previous, zh: previous.zh.slice(0, -1) }
-  }
-  return displayed
-}
-
 const sourceKey = text => text.trim().replace(/\s+/g, ' ').replace(/(?<!\.)\.$/, '')
 export const sameRecognizedSource = (left, right) => sourceKey(left) === sourceKey(right)
 

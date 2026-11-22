@@ -9,15 +9,22 @@ function phraseBoundary(text, tokens, start, end, limit = tokens.length) {
   while (end < limit && end - start < 40 && (unfinishedSpeech(slice(text, tokens, start, end)) || /\b(?:a|an|the)\s+better$/i.test(slice(text, tokens, start, end)))) end++
   return end
 }
+function clauseBoundary(text, tokens, start) {
+  const candidates = []
+  for (let end = start + 12; end < tokens.length; end++) {
+    const before = slice(text, tokens, start, end)
+    if (/\b(?:that|if|when|because|whether|know|think|believe|hope|wish|said|says|see|ensure|and|but|or|by|while|through|for)\s*$/i.test(before)) continue
+    if (/^(?:we\s+(?:are|have|need|can|will|change|keep|record|discuss)\b|this\s+is\b|(?:a|the)\s+(?:[a-z-]+\s+){0,3}result\s+is\b|recording\s+(?:the\s+)?results?\s+carefully\b)/i.test(text.slice(tokens[end].index))) candidates.push(end)
+  }
+  return candidates.find(end => end - start >= 30 && end - start <= 40) || candidates.filter(end => end - start <= 40).at(-1) || candidates[0] || tokens.length
+}
 function sentences(text) {
   return text.split(/(?<=[.!?])\s+/).flatMap(s => splitText(s)).flatMap(s => {
     const tokens = words(s)
     if (tokens.length <= 40) return [s]
     const chunks = []
     for (let start = 0; start < tokens.length;) {
-      let end = Math.min(start + 30, tokens.length)
-      if (end < tokens.length && /^please[,;:]?$/i.test(tokens[end - 1][0])) end--
-      end = phraseBoundary(s, tokens, start, end)
+      const end = tokens.length - start <= 40 ? tokens.length : clauseBoundary(s, tokens, start)
       chunks.push(slice(s, tokens, start, end)); start = end
     }
     return chunks
@@ -63,7 +70,7 @@ function missing(values, expected) {
   return values.some(value => { const index = remaining.indexOf(value); if (index < 0) return true; remaining.splice(index, 1); return false })
 }
 
-export function createSpeechController(rec, { commit, revise = (_id, _text, _meta) => {}, preview, state, message, settling = (_pending) => {}, canRevise = (_id) => false }) {
+export function createSpeechController(rec, { commit, revise = (_id, _text, _meta) => {}, preview, state, message, settling = (_pending) => {}, canRevise = (_id) => false, isDispatched = (_id) => false }) {
   rec.continuous = true; rec.interimResults = true; rec.lang = 'en-US'; rec.maxAlternatives = 3
   let wanted = false; let running = false; let nativeStarted = false; let current = session(); let closing; let pause
   let retryTimer; let failures = 0; let failed = false; let immediateRetry = false
@@ -77,9 +84,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
   const metadata = (s, start, end, saved = false) => {
     const final = s.finals.find(range => end <= range.end)
     const uncertain = !final || !!final.saved
-    const finalStart = s.finals[s.finals.indexOf(final) - 1]?.end || 0
-    const recognitionBoundary = { session: s.id, range: [start, end], finalRange: uncertain ? undefined : [finalStart, final.end] }
-    return { ...speechEvidence(s, start, end), recognitionBoundary, confidence: final?.confidence, numericAlternatives: final?.alternatives || [], unconfirmed: !!s.terminal && uncertain, provisional: !s.terminal && uncertain || !s.flushed && end === words(s.text).length && unfinishedSpeech(slice(s.text, words(s.text), start, end)), forced: !s.terminal && (!!final?.saved || !final && saved), numericWarnings: [...new Set(s.risks.filter(r => r.start < end && r.end > start).map(r => r.reason))] }
+    return { ...speechEvidence(s, start, end), confidence: final?.confidence, numericAlternatives: final?.alternatives || [], unconfirmed: !!s.terminal && uncertain, provisional: !s.terminal && uncertain || !s.flushed && end === words(s.text).length && unfinishedSpeech(slice(s.text, words(s.text), start, end)), forced: !s.terminal && (!!final?.saved || !final && saved), numericWarnings: [...new Set(s.risks.filter(r => r.start < end && r.end > start).map(r => r.reason))] }
   }
   const publishedWords = s => s.parts.reduce((sum, p) => sum + p.count, 0)
   const notifySettlement = () => settling([...endedSessions, current].some(s => s.terminal && (s.parts.some(part => !part.ignored && !part.settled) || words(s.text).length > publishedWords(s))))
@@ -129,6 +134,31 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
     while (matching < Math.min(committed.length, next.length) && committed[matching] === next[matching]) matching++
     s.text = text; s.finals = finals; s.awaitingFinal = (finals.at(-1)?.end || 0) < words(text).length || unfinishedSpeech(text)
     const tokens = words(text)
+    const complete = finals.at(-1)
+    if (complete && !complete.saved && complete.end === tokens.length) {
+      const finalStart = finals.at(-2)?.end || 0
+      let first = s.parts.length; let start = publishedWords(s)
+      while (first > 0) {
+        const part = s.parts[first - 1]
+        if (start - part.count < finalStart || isDispatched(part.id) || part.settled && !part.provisional && !part.forced && !canRevise(part.id)) break
+        start -= part.count; first--
+      }
+      const part = s.parts[first]
+      const prior = normalized(s.parts.slice(first).map(p => p.text).join(' '))
+      if (part && !part.ignored && s.parts.slice(first + 1).every(tail => tail.ignored || canRevise(tail.id)) && prior.every((word, i) => word === next[start + i])) {
+        const planned = sentences(slice(text, tokens, start, complete.end))
+        if (planned.length && s.parts.slice(first).map(p => p.text).join('\n') !== planned.join('\n')) {
+          for (const tail of s.parts.splice(first + 1)) {
+            clearTimeout(tail.settleTimer); timers.delete(tail.settleTimer)
+            if (!tail.ignored) revise(tail.id, '', {})
+          }
+          clearTimeout(part.settleTimer); timers.delete(part.settleTimer); part.settleTimer = undefined
+          const en = planned[0]; const meta = metadata(s, start, start + words(en).length)
+          revise(part.id, en, { ...meta, settled: false })
+          Object.assign(part, { text: en, count: words(en).length, ...meta, settled: false })
+        }
+      }
+    }
     const last = s.parts.findLastIndex(part => !part.ignored)
     let join = last
     if (last > 0 && s.parts[last].count <= 3 && canRevise(s.parts[last].id) && !s.parts[last - 1].ignored && canRevise(s.parts[last - 1].id)) join--
@@ -149,11 +179,12 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
     }
     let offset = 0
     for (const [index, part] of s.parts.entries()) {
+      if (isDispatched(part.id)) { offset += part.count; continue }
       let end = Math.min(offset + part.count, tokens.length)
       const final = finals.find(range => offset + part.count <= range.end) || finals.find(range => offset < range.end)
       if (index === s.parts.length - 1 && final) {
         const completed = sentences(slice(text, tokens, offset, final.end))[0]
-        if (completed && words(completed).length <= 40) end = offset + words(completed).length
+        if (completed) end = offset + words(completed).length
       }
       if (end > offset && end < tokens.length && /^please[,;:]?$/i.test(tokens[end - 1][0])) end--
       if (part.provisional && final && !final.saved) end = phraseBoundary(text, tokens, offset, end, final.end)
@@ -195,7 +226,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
       const last = s.parts.at(-1)
       const offset = start - (last?.count || 0)
       const extended = slice(s.text, tokens, offset, end)
-      if (last?.provisional && !last.ignored && !last.forced && sentences(extended).length === 1 && words(extended).length <= 40) {
+      if (last?.provisional && !last.ignored && !last.forced && sentences(extended).length === 1) {
         const meta = metadata(s, offset, end)
         revise(last.id, extended, meta)
         Object.assign(last, { text: extended, count: words(extended).length, ...meta })

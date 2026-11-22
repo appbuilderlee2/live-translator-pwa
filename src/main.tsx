@@ -4,7 +4,7 @@ import { negationMismatch } from '../shared/negation.mjs'
 import { medicalWarnings } from '../shared/medical.mjs'
 import { translateWithFallback } from './local.mjs'
 import { networkTranslation } from './network.mjs'
-import { numericMismatch, splitText, recoverSegment, retryableSegments, previousContext, translationReady, reviseRecognizedSegment, sameRecognizedSource, displayTranscript } from './transcript.mjs'
+import { numericMismatch, splitText, recoverSegment, retryableSegments, previousContext, translationReady, reviseRecognizedSegment, sameRecognizedSource } from './transcript.mjs'
 import { captionState } from './translation-state.mjs'
 import { createSpeechController } from './speech.mjs'
 import { speakTranslation } from './voice.mjs'
@@ -19,7 +19,7 @@ import '@fontsource/noto-sans-tc/400.css'
 import './style.css'
 import './accessibility.css'
 
-type Segment = { id: string; en: string; zh: string; timestamp: number; confidence?: number; forced?: boolean; provisional?: boolean; unconfirmed?: boolean; settled?: boolean; spoken?: boolean; recognitionEvidence?: object; recognitionBoundary?: object; numericWarnings?: string[]; numericAlternatives?: number[][]; retryable?: boolean; translation?: { source: string; text: string }; status: 'pending' | 'translating' | 'done' | 'error' }
+type Segment = { id: string; en: string; zh: string; timestamp: number; confidence?: number; forced?: boolean; provisional?: boolean; unconfirmed?: boolean; settled?: boolean; spoken?: boolean; recognitionEvidence?: object; numericWarnings?: string[]; numericAlternatives?: number[][]; retryable?: boolean; translation?: { source: string; text: string }; status: 'pending' | 'translating' | 'done' | 'error' }
 type SpeechMetadata = Pick<Segment, 'confidence' | 'forced' | 'provisional' | 'unconfirmed' | 'settled' | 'spoken' | 'numericWarnings' | 'numericAlternatives'>
 type Session = { id: string; timestamp: number; segments: Segment[] }
 type Recognition = { start(): void; stop(): void }
@@ -197,7 +197,7 @@ function App() {
   useEffect(() => {
     const Constructor = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!Constructor) return
-    const controller = createSpeechController(new Constructor(), { commit: (text: string, metadata: SpeechMetadata) => commitRef.current(text, { ...metadata, spoken: true }), revise: (id: string, text: string, metadata: SpeechMetadata) => reviseRef.current(id, text, metadata), preview: setInterim, state: setMicState, message: setMicMessage, settling: setSpeechSettling, canRevise: (id: string) => !dispatched.current.has(id) && segmentsRef.current.some(s => s.id === id && s.status === 'pending' && !s.translation) })
+    const controller = createSpeechController(new Constructor(), { commit: (text: string, metadata: SpeechMetadata) => commitRef.current(text, { ...metadata, spoken: true }), revise: (id: string, text: string, metadata: SpeechMetadata) => reviseRef.current(id, text, metadata), preview: setInterim, state: setMicState, message: setMicMessage, settling: setSpeechSettling, canRevise: (id: string) => !dispatched.current.has(id) && segmentsRef.current.some(s => s.id === id && s.status === 'pending' && !s.translation), isDispatched: (id: string) => dispatched.current.has(id) })
     speech.current = controller
     return () => controller.dispose()
   }, [])
@@ -221,7 +221,7 @@ function App() {
     changeHistory(items => [restored, ...items].sort((a, b) => b.timestamp - a.timestamp)); setDeleted(null)
     for (const s of restored.segments) if ((s.status === 'pending' || s.status === 'error') && !active.current.has(s.id)) void run(s)
   }
-  const shown = displayTranscript(selected?.segments || segments)
+  const shown = selected?.segments || segments
   useLayoutEffect(() => {
     if (view.current !== selectedId) { view.current = selectedId; follower.current = createTranscriptFollower() }
     const element = transcriptElement.current

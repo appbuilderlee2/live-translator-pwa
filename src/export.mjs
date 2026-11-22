@@ -1,4 +1,4 @@
-import { displayTranscript, translationReady } from './transcript.mjs'
+import { translationReady } from './transcript.mjs'
 
 /** @template {{ status: string }} T
  * @param {() => T[]} read
@@ -16,7 +16,7 @@ export async function waitForTranslations(read, { timeout = 2000, interval = 50 
  * @param {(segment: T, context: T[]) => string[]} [warnings]
  */
 export function formatTranscript(segments, warnings = () => []) {
-  return displayTranscript(segments).map((segment, index) => {
+  return segments.map((segment, index) => {
     const lines = [new Date(segment.timestamp).toLocaleString(), segment.en]
     if (segment.status !== 'done' || !translationReady(segment)) lines.push('[翻譯尚未完成 / Translation still pending; English preserved]')
     if (segment.zh && translationReady(segment)) lines.push(segment.zh)
