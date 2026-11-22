@@ -63,7 +63,7 @@ function missing(values, expected) {
   return values.some(value => { const index = remaining.indexOf(value); if (index < 0) return true; remaining.splice(index, 1); return false })
 }
 
-export function createSpeechController(rec, { commit, revise = (_id, _text, _meta) => {}, preview, state, message }) {
+export function createSpeechController(rec, { commit, revise = (_id, _text, _meta) => {}, preview, state, message, settling = (_pending) => {} }) {
   rec.continuous = true; rec.interimResults = true; rec.lang = 'en-US'; rec.maxAlternatives = 3
   let wanted = false; let running = false; let nativeStarted = false; let current = session(); let closing; let pause
   let retryTimer; let failures = 0; let failed = false; let immediateRetry = false
@@ -80,6 +80,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
     return { ...speechEvidence(s, start, end), confidence: final?.confidence, numericAlternatives: final?.alternatives || [], unconfirmed: !!s.terminal && uncertain, provisional: !s.terminal && uncertain || !s.flushed && end === words(s.text).length && unfinishedSpeech(slice(s.text, words(s.text), start, end)), forced: !s.terminal && (!!final?.saved || !final && saved), numericWarnings: [...new Set(s.risks.filter(r => r.start < end && r.end > start).map(r => r.reason))] }
   }
   const publishedWords = s => s.parts.reduce((sum, p) => sum + p.count, 0)
+  const notifySettlement = () => settling([...endedSessions, current].some(s => s.terminal && (s.parts.some(part => !part.ignored && !part.settled) || words(s.text).length > publishedWords(s))))
   function settle(s) {
     for (const part of s.parts) {
       if (part.ignored || part.settled || part.provisional || part.forced || part.settleTimer) continue
@@ -192,10 +193,12 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
       part.forced = true; revise(part.id, part.text, { confidence: undefined, provisional: true, forced: true })
     }
     settle(s)
+    notifySettlement()
   }
   function endListening() {
     const sessions = [...endedSessions, current]
     for (const s of sessions) s.terminal = true
+    notifySettlement()
     later(() => { for (const s of sessions) flush(s) })
   }
   function previewCurrent() { preview(current.text.slice(current.committedCharacters).trim()) }

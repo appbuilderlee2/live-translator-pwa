@@ -11,7 +11,7 @@ const flush = async () => { for (let i = 0; i < 30; i++) await Promise.resolve()
 test('short science clauses and section endings bypass length gate without inventing words', () => {
   const source = 'same recording result carefully makes the experiment easier to repeat afterprising result is not a failure it is a reason to ask a better'
   const chinese = '仔細記錄相同的結果使實驗更容易重複 令人驚訝的結果不是失敗而是要求更好的理由'
-  const expected = '仔細記錄相同的結果使實驗更容易重複。令人驚訝的結果不是失敗而是要求更好的理由'
+  const expected = '仔細記錄相同的結果使實驗更容易重複。令人驚訝的結果不是失敗，而是要求更好的理由'
   assert.equal(readableChinese(source, chinese), expected)
   assert.equal(readableChinese(source, expected), expected)
   assert.equal(readableChinese(source, ''), '')

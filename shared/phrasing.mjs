@@ -45,8 +45,12 @@ export function readableChinese(source = '', text = '', complete = true) {
     [/\bcollecting rainwater\b/i, /([\p{Script=Han}\d])\s*(?=收集雨水)/gu]
   ]
   for (const [english, chinese] of lectureBoundaries) if (english.test(source)) separate(chinese)
-  if (/\bis\s+not\s+an?\s+(?:(?!(?:because|when|if|although|unless|since|while|and|but|or|it)\b)[a-z-]+[,.!?;]?\s+){1,4}it\s+is\b/i.test(source)) {
+  if (/\bconditions?\s+(?:are\s+)?(?:the\s+)?same[.!?;,]?\s+recording\s+(?:the\s+)?results?\s+carefully\b/i.test(source)) {
+    result = result.replace(/((?:相同|不變)[\p{Script=Han}]{0,10})\s+(?=仔細(?:地)?[\p{Script=Han}])/gu, '$1。')
+  }
+  if (/\bis\s+not\s+an?\s+(?:(?!(?:because|when|if|although|unless|since|while|and|but|or|it)\b)[a-z-]+[,.!?;]?\s+){1,4}(?:it\s+is|but)\b/i.test(source)) {
     result = result.replace(/(不是[^。！？；，,\s]{1,32})\s+(?=(它是|這是|而是))/gu, (_match, negative, next) => `${negative}${next === '而是' ? '，' : '。'}`)
+    result = result.replace(/(不是[^。！？；，,\s]{1,32})\s*(?=而是)/gu, '$1，')
   }
   if (!long && result === text) return text
   if (/\b(?:do not|don't|never) take more than\b/i.test(source)) separate(/([\p{Script=Han}])[，,\s]*(?=\d+\s*小時內(?:不要|不可|不得|勿|別))/gu)

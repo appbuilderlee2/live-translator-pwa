@@ -105,3 +105,30 @@ test('final articles and filler suffixes never create translated captions; later
   assert.deepEqual(h.calls.map(call => call.en), ['Please wait here.', 'the station is open.'])
   assert.equal(h.pending(), 0)
 })
+
+for (const restart of [false, true]) test(`native-equivalent two interim rows collapse to final index zero after a frozen Stop; restart=${restart}`, async t => {
+  const h = harness(t)
+  const prefix = 'Chapter 3 today we are discussing garden planning a garden project begins with a simple drawing we choose one plant and'
+  const held = `${prefix} keep`
+  const complete = `${held} the other plants the same writing plans carefully makes the project easier`
+  h.speech.start(); h.emit(complete); await h.advance(1500)
+  h.speech.stop(); h.rec.onend(); await h.advance(10000)
+  const original = structuredClone(h.captions.get(1))
+  h.speech.start(); h.emit(held); await h.advance(1500)
+  h.speech.stop()
+  if (restart) h.speech.start()
+  t.mock.timers.setTime(Date.now() + 4065)
+  assert.equal(h.calls.length, 1)
+  h.rec.onresult({ resultIndex: 0, results: [
+    Object.assign([{ transcript: prefix, confidence: .9 }], { isFinal: false }),
+    Object.assign([{ transcript: 'keep the', confidence: .01 }], { isFinal: false })
+  ] })
+  h.emit(`${held} the`, true)
+  h.rec.onend(); await h.advance(20000)
+  assert.deepEqual(h.captions.get(1), original)
+  assert.deepEqual(h.calls.map(call => call.id), [1, 2])
+  assert.equal(h.captions.size, 2)
+  assert.equal(h.pending(), 0)
+  assert.ok(!h.calls.some(call => call.en === 'the'))
+  assert.equal(h.captions.get(2).en.replace(/ the$/, ''), held)
+})
