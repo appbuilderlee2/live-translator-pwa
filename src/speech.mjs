@@ -296,9 +296,11 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
   }
   rec.onerror = event => {
     if (['not-allowed', 'service-not-allowed'].includes(event.error)) {
+      failed = false; immediateRetry = false
       wanted = false; state('idle'); message(`無法使用麥克風（${event.error}）。請依下方「麥克風設定說明」允許權限，或改用英文輸入。Microphone ${event.error}. Follow Microphone help below to allow access, or type English.`)
       endListening()
     } else if (['audio-capture', 'network'].includes(event.error)) {
+      if (!wanted) { state('idle'); message(''); return }
       failed = true
       message(event.error === 'network' ? '麥克風語音服務網路錯誤（network），正在重試。請檢查網路或按「重試麥克風」。Microphone speech-service network error (network). Retrying; check your connection or Retry mic.' : '麥克風擷取失敗（audio-capture），正在重試。請檢查麥克風連線與權限，或按「重試麥克風」。Microphone capture error (audio-capture). Retrying; check microphone connection and permissions or Retry mic.')
       immediateRetry = event.error === 'network' && failures === 0
@@ -324,7 +326,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
     if (wanted && failed && immediateRetry) { immediateRetry = false; failures++; startRecognition() }
     else if (wanted && failed) scheduleRetry()
     else if (wanted) startRecognition()
-    else { state('idle'); endListening() }
+    else { if (failed) { failed = false; immediateRetry = false; message('') } state('idle'); endListening() }
   }
   function startRecognition() {
     nativeStarted = false
@@ -349,6 +351,8 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
     },
     stop() {
       wanted = false; clearTimeout(pause); clearTimeout(retryTimer); retryTimer = undefined; state('idle')
+      if (failed) message('')
+      failed = false; immediateRetry = false
       endListening()
       const stopped = current
       stopped.timer = later(() => flush(stopped))

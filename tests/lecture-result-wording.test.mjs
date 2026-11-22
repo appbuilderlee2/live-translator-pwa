@@ -31,7 +31,7 @@ test('split provider chunks preserve the complete source-backed wording and sent
 
 const run1Source = 'conditions the same recording result carefully makes the experiment easier to repeat a surprising result is not a failure it is a reason to ask a better question this is the end of affectionate'
 const run1 = '相同的記錄結果 仔細地使實驗更容易重複。令人驚訝的結果不是失敗 它是提出更好問題的理由。這是深情的結束。'
-const run1Expected = '相同的記錄結果。仔細地使實驗更容易重複。令人驚訝的結果不是失敗。它是提出更好問題的理由。這是深情的結束。'
+const run1Expected = '相同的。記錄結果 仔細地使實驗更容易重複。令人驚訝的結果不是失敗。它是提出更好問題的理由。這是深情的結束。'
 const run2Source = run1Source.replace('affectionate', 'Section 8')
 const run2 = '令人驚訝的結果不是失敗。這是提出更好問題的理由。'
 

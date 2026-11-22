@@ -16,16 +16,17 @@ function harness(t, retry = false) {
     if (retry && requests.length === 1) throw Object.assign(new Error('unavailable'), { code: 'upstream_unavailable', retryable: true })
     captions.set(segment.id, { ...segment, status: 'done', zh: '完成' })
   } })
-  const rec = { start() { this.onstart() }, stop() {} }
+  const messages = []; const states = []
+  const rec = { starts: 0, start() { this.starts++; this.onstart() }, stop() {} }
   const speech = createSpeechController(rec, {
     commit(en, metadata) { const key = String(++id); captions.set(key, { id: key, en, timestamp: id, status: 'pending', ...metadata }); queue.enqueue(key); return key },
     revise(id, en, metadata) { captions.set(id, reviseRecognizedSegment(captions.get(id), en, metadata)); queue.enqueue(id) },
-    settling(value) { settling = value; record() }, preview() {}, state() {}, message() {}
+    settling(value) { settling = value; record() }, preview() {}, state(value) { states.push(value) }, message(value) { messages.push(value) }
   })
   t.after(() => { speech.dispose(); queue.dispose() })
   const emit = text => rec.onresult({ resultIndex: 0, results: [Object.assign([{ transcript: text, confidence: .9 }], { isFinal: false })] })
   const advance = async ms => { for (let left = ms; left > 0; left -= 50) { t.mock.timers.tick(Math.min(50, left)); await drain() } }
-  return { speech, rec, emit, advance, captions, transitions, requests }
+  return { speech, rec, emit, advance, captions, transitions, requests, messages, states }
 }
 
 for (const ending of ['Stop', 'native-end', 'permission-error']) test(`pending notice spans terminal recognition handoff: ${ending}`, async t => {
@@ -60,4 +61,38 @@ test('empty and filler-only Stops never reserve phantom pending work', async t =
   }
   assert.equal(h.requests.length, 0)
   assert.ok(h.transitions.every(s => !s.visible))
+})
+
+for (const timing of ['before-stop', 'after-stop', 'after-end']) test(`speech retry copy clears while provider retries survive: ${timing}`, async t => {
+  const h = harness(t, true)
+  h.speech.start(); h.emit('Please preserve this unfinished lecture')
+  if (timing === 'before-stop') {
+    h.rec.onerror({ error: 'network' })
+    assert.match(h.messages.at(-1), /Retrying/)
+    assert.equal(h.states.at(-1), 'retrying')
+  }
+  h.speech.stop()
+  if (timing === 'after-stop') h.rec.onerror({ error: 'network' })
+  h.rec.onend()
+  if (timing === 'after-end') h.rec.onerror({ error: 'network' })
+  assert.equal(h.messages.at(-1), '')
+  assert.equal(h.states.at(-1), 'idle')
+  await h.advance(1000)
+  assert.equal(h.requests.length, 1)
+  assert.equal(h.transitions.at(-1).visible, true)
+  await h.advance(10000)
+  assert.equal(h.requests.length, 2)
+  assert.equal(h.transitions.at(-1).visible, false)
+  assert.equal(h.messages.at(-1), '')
+  assert.equal(h.states.at(-1), 'idle')
+  assert.equal(h.rec.starts, 1)
+})
+
+test('Stop preserves actionable permission failures instead of clearing every microphone message', async t => {
+  const h = harness(t)
+  h.speech.start(); h.rec.onerror({ error: 'network' }); h.rec.onerror({ error: 'not-allowed' }); h.rec.onend()
+  assert.match(h.messages.at(-1), /Microphone not-allowed/)
+  h.speech.stop(); await h.advance(10000)
+  assert.match(h.messages.at(-1), /Microphone not-allowed/)
+  assert.equal(h.requests.length, 0)
 })
