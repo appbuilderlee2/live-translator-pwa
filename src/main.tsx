@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { negationMismatch } from '../shared/negation.mjs'
 import { medicalWarnings } from '../shared/medical.mjs'
 import { translateWithFallback } from './local.mjs'
+import { createDeviceTranslator } from './device.mjs'
 import { networkTranslation } from './network.mjs'
 import { numericMismatch, splitText, recoverSegment, retryableSegments, previousContext, translationReady, reviseRecognizedSegment, sameRecognizedSource } from './transcript.mjs'
 import { captionState } from './translation-state.mjs'
@@ -43,20 +44,9 @@ function warnings(segment: Segment, context: { en: string; zh: string }[] = []) 
   if (!segment.provisional && !segment.forced && segment.confidence !== undefined && segment.confidence < .8) result.push('辨識信心較低 / low speech confidence')
   return result
 }
-let devicePromise: Promise<Translator | null> | undefined
-function device() {
-  if (!devicePromise) devicePromise = (async () => {
-    if (!('Translator' in self) || !window.Translator) return null
-    const options = { sourceLanguage: 'en', targetLanguage: 'zh-Hant' }
-    try {
-      if (await window.Translator.availability(options) === 'unavailable') return null
-      return await Promise.race([window.Translator.create(options), new Promise<null>(resolve => setTimeout(() => resolve(null), 1500))])
-    } catch { return null }
-  })()
-  return devicePromise
-}
+const device = createDeviceTranslator(window.Translator)
 async function translate(text: string, signal: AbortSignal, update: (text: string) => void, context: { en: string; zh: string }[] = [], options: { spoken?: boolean; preview?: boolean } = {}) {
-  const local = await device()
+  const local = device.current()
   return translateWithFallback(local, text, signal, update, context, options, (...args: Parameters<typeof networkTranslation>) => {
     if (!navigator.onLine) throw new Error('offline')
     return networkTranslation(...args)
@@ -76,7 +66,10 @@ function App() {
   const pendingTranslations = Math.max(providerState.pending, Number(speechSettling))
   const [exporting, setExporting] = useState(false)
   const [micMessage, setMicMessage] = useState('')
-  const [autoSpeak, setAutoSpeak] = useState(() => load('lt-auto-speak', false)); const [font, setFont] = useState(() => { const value = load('lt-font', 28); return typeof value === 'number' ? Math.min(42, Math.max(20, value)) : 28 }); const [localReady, setLocalReady] = useState(false)
+  const [autoSpeak, setAutoSpeak] = useState(() => load('lt-auto-speak', false)); const [font, setFont] = useState(() => { const value = load('lt-font', 28); return typeof value === 'number' ? Math.min(42, Math.max(20, value)) : 28 })
+  const [deviceState, setDeviceState] = useState({ status: 'checking', progress: 0 })
+  const localReady = deviceState.status === 'ready'
+  useEffect(() => { const unsubscribe = device.subscribe(setDeviceState); void device.probe(); return unsubscribe }, [])
   const [voiceChoice, setVoiceChoice] = useState<string>(() => load('lt-voice', 'zh-TW'))
   const [rate, setRate] = useState<number>(() => { const saved = load('lt-rate', 1); return [.8, 1, 1.2].includes(saved) ? saved : 1 })
   const [largeUI, setLargeUI] = useState(() => load('lt-large-ui', false))
@@ -203,7 +196,7 @@ function App() {
   }, [])
   function toggleMic() {
     if (micState !== 'idle') speech.current?.stop()
-    else { setSelectedId(null); setHistoryOpen(false); void device().then(t => setLocalReady(!!t)); speech.current?.start() }
+    else { setSelectedId(null); setHistoryOpen(false); void device.prepare(); speech.current?.start() }
   }
   async function newSession() {
     await speech.current?.finish()
@@ -270,10 +263,13 @@ function App() {
       <div className="notifications">{micMessage && <div className="notice" role="alert"><span>{micMessage}</span><button onClick={() => { setSelectedId(null); setHistoryOpen(false); speech.current?.start() }}>重試麥克風 / Retry mic</button></div>}{pendingTranslations > 0 ? <div className="notice provider-delay" role="status"><span>翻譯延遲{providerState.reason ? '，翻譯服務暫時限流或無法使用' : ''}；英文已保留，依序自動重試。目前 {pendingTranslations} 段等待。Translation delayed{providerState.reason ? ' / provider throttled or unavailable' : ''}; English saved, oldest first. {pendingTranslations} waiting.</span></div> : translationErrors.length > 0 && <div className="notice" role="status"><span>翻譯尚未完成，英文已保留；請查看各段狀態。Translation pending; English saved. See each caption’s status.</span><button onClick={() => setTranslationErrors([])} aria-label="關閉訊息 / Dismiss message">×</button></div>}{message && <div className="notice" role="status"><span>{message}</span><button onClick={() => setMessage('')} aria-label="關閉訊息 / Dismiss message">×</button></div>}
       {deleted && <div className="notice" role="status"><span>已刪除對話 / Session deleted. {undoSeconds > 0 ? `至少保留 ${undoSeconds} 秒，之後仍可復原 / At least ${undoSeconds}s remaining; Undo stays available` : '復原保留至關閉 / Undo available until dismissed'}</span><button onClick={undoDelete}>復原 Undo</button><button onClick={() => setDeleted(null)} aria-label="關閉復原訊息 / Dismiss Undo">×</button></div>}</div>
       <div className="sr-only" aria-live="polite" aria-atomic="true">{announcement}</div><div className="sr-only" role="status">{micState === 'retrying' ? '麥克風重新連線中 / Reconnecting microphone' : micState === 'requesting' ? '等待麥克風授權 / Requesting microphone' : mic ? '收音中 / Listening' : '麥克風已關閉 / Microphone off'}. {online ? '連線 / Online' : '離線 / Offline'}</div>
-      <div className="bottom-bar" ref={bottomBarElement}><form className="inputbox" onSubmit={e => { e.preventDefault(); commit(input); setInput(''); setSelectedId(null); setHistoryOpen(false); void device().then(t => setLocalReady(!!t)) }}><label className="sr-only" htmlFor="english">輸入英文翻譯，長文將自動分段。Type English; long text is split into segments.</label><textarea ref={composer} id="english" rows={2} value={input} onChange={e => setInput(e.target.value)} placeholder="在此輸入英文 / Type English here…" onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.currentTarget.form?.requestSubmit() } }} /><button type="submit" disabled={!input.trim()} aria-label="翻譯輸入文字 / Translate message">↑</button></form>
+      <div className="bottom-bar" ref={bottomBarElement}><form className="inputbox" onSubmit={e => { e.preventDefault(); void device.prepare(); commit(input); setInput(''); setSelectedId(null); setHistoryOpen(false) }}><label className="sr-only" htmlFor="english">輸入英文翻譯，長文將自動分段。Type English; long text is split into segments.</label><textarea ref={composer} id="english" rows={2} value={input} onChange={e => setInput(e.target.value)} placeholder="在此輸入英文 / Type English here…" onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.currentTarget.form?.requestSubmit() } }} /><button type="submit" disabled={!input.trim()} aria-label="翻譯輸入文字 / Translate message">↑</button></form>
       <p className="input-hint">按 Enter 翻譯；Shift+Enter 換行。Enter to translate; Shift+Enter for a new line.</p>
       {input.length > 2000 && <p className="input-hint" role="status">共 {input.length.toLocaleString()} 字元，將完整分為 {splitText(input).length} 段。Characters will be split into segments; no text is cut.</p>}
       <div className="controls"><label className="speak-toggle"><input type="checkbox" checked={autoSpeak} onChange={e => { setAutoSpeak(e.target.checked); if (e.target.checked) speak('語音已開啟') }} /><span className="switch"/><span>朗讀譯文<small>Speak translations</small></span></label><div className="mic-group"><button className={`mic ${mic ? 'recording' : ''}`} disabled={!speechSupported} onClick={toggleMic} aria-label={micState !== 'idle' ? '停止收音 / Stop microphone' : '開始收音 / Start microphone'}>{mic ? <span className="stop-icon"/> : <svg width="24" height="28" viewBox="0 0 24 28" fill="none" aria-hidden="true"><rect x="8" y="2" width="8" height="15" rx="4" stroke="currentColor" strokeWidth="2"/><path d="M4 12v2a8 8 0 0016 0v-2M12 22v4M8 26h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>}</button><span>{micState === 'retrying' ? '麥克風重新連線中 / Reconnecting microphone…' : micState === 'requesting' ? '等待授權 / Requesting microphone…' : mic ? '按一下停止 / Tap to stop' : '按一下開始說英文 / Tap to speak English'}</span></div><div className="privacy"><span>◈ {localReady ? '裝置內翻譯 / On-device' : '即時理解 / In the moment'}</span><small>{localReady ? '可離線使用 / READY OFFLINE' : '不必註冊 / NO ACCOUNT NEEDED'}</small></div></div>
+        {['downloadable', 'error', 'downloading', 'preparing'].includes(deviceState.status) && <div className="device-status">
+          {['downloadable', 'error'].includes(deviceState.status) ? <button className="quiet" onClick={() => { void device.prepare() }}>{deviceState.status === 'error' ? '重試離線模型 / Retry offline model' : '下載離線翻譯 / Download offline translation'}</button> : <small role="status">{deviceState.status === 'preparing' ? '準備裝置內翻譯 / Preparing on-device translation…' : `下載翻譯模型 / Downloading translation model… ${deviceState.progress}%`} · 仍可收音與線上翻譯 / Speech and online translation remain available</small>}
+        </div>}
       </div><section className="preferences" aria-label="無障礙與語音設定 / Accessibility and voice settings">
         {diagnosticsEnabled() && <button onClick={downloadDiagnostics}>下載派送診斷 / Download dispatch diagnostics</button>}
         <label>朗讀語音 / Voice<select aria-label="朗讀語音 / Voice" value={voiceChoice} onChange={e => setVoiceChoice(e.target.value)}><option value="zh-TW">台灣華語 / Taiwan Mandarin {voices.some(v => /^zh-TW$/i.test(v.lang)) ? '' : '（未安裝 / Not installed）'}</option><option value="zh-HK">香港粵語 / HK Cantonese {voices.some(v => /^zh-HK$/i.test(v.lang)) ? '' : '（未安裝 / Not installed）'}</option>{voices.map(v => <option key={v.voiceURI} value={v.voiceURI}>{v.name} ({v.lang})</option>)}{!['zh-TW', 'zh-HK'].includes(voiceChoice) && !voices.some(v => v.voiceURI === voiceChoice) && <option value={voiceChoice}>所選語音未安裝 / Selected voice not installed</option>}</select></label>
