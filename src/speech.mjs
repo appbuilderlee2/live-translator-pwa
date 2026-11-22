@@ -63,7 +63,7 @@ function missing(values, expected) {
   return values.some(value => { const index = remaining.indexOf(value); if (index < 0) return true; remaining.splice(index, 1); return false })
 }
 
-export function createSpeechController(rec, { commit, revise = (_id, _text, _meta) => {}, preview, state, message, settling = (_pending) => {} }) {
+export function createSpeechController(rec, { commit, revise = (_id, _text, _meta) => {}, preview, state, message, settling = (_pending) => {}, canRevise = (_id) => false }) {
   rec.continuous = true; rec.interimResults = true; rec.lang = 'en-US'; rec.maxAlternatives = 3
   let wanted = false; let running = false; let nativeStarted = false; let current = session(); let closing; let pause
   let retryTimer; let failures = 0; let failed = false; let immediateRetry = false
@@ -81,6 +81,17 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
   }
   const publishedWords = s => s.parts.reduce((sum, p) => sum + p.count, 0)
   const notifySettlement = () => settling([...endedSessions, current].some(s => s.terminal && (s.parts.some(part => !part.ignored && !part.settled) || words(s.text).length > publishedWords(s))))
+  function awaitTerminalFinal(s) {
+    if (!s.terminal) return
+    s.quietUntil = Date.now() + 250
+    for (const part of s.parts) if (!part.ignored && canRevise(part.id)) {
+      clearTimeout(part.settleTimer); timers.delete(part.settleTimer); part.settleTimer = undefined
+      if (part.settled) { part.settled = false; revise(part.id, part.text, { settled: false }) }
+    }
+    clearTimeout(s.timer); timers.delete(s.timer)
+    s.timer = later(() => flush(s))
+    notifySettlement()
+  }
   function settle(s) {
     for (const part of s.parts) {
       if (part.ignored || part.settled || part.provisional || part.forced || part.settleTimer) continue
@@ -116,10 +127,28 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
     while (matching < Math.min(committed.length, next.length) && committed[matching] === next[matching]) matching++
     s.text = text; s.finals = finals; s.awaitingFinal = (finals.at(-1)?.end || 0) < words(text).length || unfinishedSpeech(text)
     const tokens = words(text)
+    const last = s.parts.findLastIndex(part => !part.ignored)
+    let join = last
+    if (last > 0 && s.parts[last].count <= 3 && canRevise(s.parts[last].id) && !s.parts[last - 1].ignored && canRevise(s.parts[last - 1].id)) join--
+    const part = s.parts[join]
+    const start = s.parts.slice(0, join).reduce((sum, p) => sum + p.count, 0)
+    const final = finals.at(-1)
+    const extension = (final?.end || 0) - start - (part?.count || 0)
+    if (part && canRevise(part.id) && final && !finals.some(range => range.saved && range.end > start) && final.end === tokens.length && extension > 0 && extension <= 3 && part.count + extension <= 40 && !/[.!?]["')\]]?$/.test(part.text) && normalized(part.text).every((word, i) => word === next[start + i])) {
+      for (const tail of s.parts.splice(join + 1)) {
+        clearTimeout(tail.settleTimer); timers.delete(tail.settleTimer)
+        if (!tail.ignored) revise(tail.id, '', {})
+      }
+      clearTimeout(part.settleTimer); timers.delete(part.settleTimer); part.settleTimer = undefined
+      const meta = metadata(s, start, final.end)
+      const en = slice(text, tokens, start, final.end)
+      revise(part.id, en, { ...meta, settled: false })
+      Object.assign(part, { text: en, count: final.end - start, ...meta, settled: false })
+    }
     let offset = 0
     for (const [index, part] of s.parts.entries()) {
       let end = Math.min(offset + part.count, tokens.length)
-      const final = finals.find(range => offset < range.end)
+      const final = finals.find(range => offset + part.count <= range.end) || finals.find(range => offset < range.end)
       if (index === s.parts.length - 1 && final) {
         const completed = sentences(slice(text, tokens, offset, final.end))[0]
         if (completed && words(completed).length <= 40) end = offset + words(completed).length
@@ -172,7 +201,13 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
       } else publish(s, start, end)
     }
   }
-  function flush(s) {
+  function flush(s, immediate = false) {
+    if (!immediate && s.terminal && s.quietUntil > Date.now()) {
+      clearTimeout(s.timer); timers.delete(s.timer)
+      const timer = setTimeout(() => { timers.delete(timer); flush(s) }, s.quietUntil - Date.now())
+      s.timer = timer; timers.add(timer)
+      return
+    }
     s.flushed = true
     clearTimeout(s.timer); timers.delete(s.timer)
     reconcile(s, s.text, s.finals)
@@ -204,6 +239,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
   function previewCurrent() { preview(current.text.slice(current.committedCharacters).trim()) }
   rec.onstart = () => { nativeStarted = true; clearTimeout(retryTimer); retryTimer = undefined }
   rec.onaudiostart = () => { nativeStarted = true; failed = false; clearTimeout(retryTimer); retryTimer = undefined; if (wanted && !current.terminal) { state('listening'); message('') } }
+  rec.onaudioend = () => awaitTerminalFinal(current)
   rec.onresult = event => {
     message('')
     const incoming = Array.from(event.results, (result, index) => ({ index, text: result[0].transcript.trim(), final: result.isFinal, confidence: result[0].confidence, alternatives: Array.from(result, a => a.transcript) })).filter(r => r.text)
@@ -215,7 +251,9 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
     const matchesClosing = !nativeStarted && !current.text && !current.terminal && closing?.awaitingFinal && incoming[0].final && ((!closing.flushed && !current.text) || overlap >= Math.min(candidate.length, old.length, 10) * .6)
     const late = !running && !current.text && incoming[0].final ? closing : undefined
     const target = matchesClosing ? closing : late || current
-    let rows = trackRows(target, incoming).filter(row => !filler(row.text))
+    awaitTerminalFinal(target)
+    const tracked = trackRows(target, incoming)
+    let rows = tracked.filter((row, index) => !filler(row.text) || row.final && tracked.slice(0, index).some(previous => !filler(previous.text)))
     if (filler(rows.filter(row => !row.final).map(row => row.text).join(' '))) rows = rows.filter(row => row.final)
     const text = rows.map(r => r.text).join(' ')
     let count = 0
@@ -316,7 +354,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
       stopped.timer = later(() => flush(stopped))
       if (running) { try { rec.stop() } catch { running = false; flush(stopped) } }
     },
-    async finish() { clearTimeout(pause); if (closing) flush(closing); flush(current); previewCurrent() },
-    dispose() { wanted = false; clearTimeout(pause); clearTimeout(retryTimer); for (const timer of timers) clearTimeout(timer); rec.onend = null; rec.onresult = null; rec.onstart = null; rec.onaudiostart = null; rec.onerror = null }
+    async finish() { clearTimeout(pause); if (closing) flush(closing, true); flush(current, true); previewCurrent() },
+    dispose() { wanted = false; clearTimeout(pause); clearTimeout(retryTimer); for (const timer of timers) clearTimeout(timer); rec.onend = null; rec.onresult = null; rec.onstart = null; rec.onaudiostart = null; rec.onaudioend = null; rec.onerror = null }
   }
 }

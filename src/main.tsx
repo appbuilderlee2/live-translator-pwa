@@ -86,6 +86,7 @@ function App() {
   const [undoSeconds, setUndoSeconds] = useState(15)
   const speech = useRef<ReturnType<typeof createSpeechController> | null>(null); const autoRef = useRef(false)
   const active = useRef(new Map<string, AbortController>()); const transcriptElement = useRef<HTMLElement>(null); const segmentsRef = useRef(segments); const historyRef = useRef(history)
+  const dispatched = useRef(new Set<string>())
   const follower = useRef(createTranscriptFollower())
   const transcriptContent = useRef<HTMLDivElement>(null)
   const workspaceElement = useRef<HTMLDivElement>(null)
@@ -147,6 +148,7 @@ function App() {
   function run(segment: Segment) { queue.current?.enqueue(segment.id) }
   async function execute(segment: Segment) {
     if (active.current.has(segment.id) || !translationReady(segment)) return
+    dispatched.current.add(segment.id)
     const controller = new AbortController(); active.current.set(segment.id, controller)
     const update = (patch: Partial<Segment>) => {
       const apply = (items: Segment[]) => items.map(s => s.id === segment.id && sameRecognizedSource(s.en, segment.en) && translationReady(s) ? { ...s, ...patch } : s)
@@ -195,7 +197,7 @@ function App() {
   useEffect(() => {
     const Constructor = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!Constructor) return
-    const controller = createSpeechController(new Constructor(), { commit: (text: string, metadata: SpeechMetadata) => commitRef.current(text, { ...metadata, spoken: true }), revise: (id: string, text: string, metadata: SpeechMetadata) => reviseRef.current(id, text, metadata), preview: setInterim, state: setMicState, message: setMicMessage, settling: setSpeechSettling })
+    const controller = createSpeechController(new Constructor(), { commit: (text: string, metadata: SpeechMetadata) => commitRef.current(text, { ...metadata, spoken: true }), revise: (id: string, text: string, metadata: SpeechMetadata) => reviseRef.current(id, text, metadata), preview: setInterim, state: setMicState, message: setMicMessage, settling: setSpeechSettling, canRevise: (id: string) => !dispatched.current.has(id) && segmentsRef.current.some(s => s.id === id && s.status === 'pending' && !s.translation) })
     speech.current = controller
     return () => controller.dispose()
   }, [])
