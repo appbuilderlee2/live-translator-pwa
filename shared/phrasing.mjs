@@ -45,6 +45,9 @@ export function readableChinese(source = '', text = '', complete = true) {
     [/\bcollecting rainwater\b/i, /([\p{Script=Han}\d])\s*(?=收集雨水)/gu]
   ]
   for (const [english, chinese] of lectureBoundaries) if (english.test(source)) separate(chinese)
+  if (/\bis\s+not\s+an?\s+(?:(?!(?:because|when|if|although|unless|since|while|and|but|or|it)\b)[a-z-]+[,.!?;]?\s+){1,4}it\s+is\b/i.test(source)) {
+    result = result.replace(/(不是[^。！？；，,\s]{1,32})\s+(?=(它是|這是|而是))/gu, (_match, negative, next) => `${negative}${next === '而是' ? '，' : '。'}`)
+  }
   if (!long && result === text) return text
   if (/\b(?:do not|don't|never) take more than\b/i.test(source)) separate(/([\p{Script=Han}])[，,\s]*(?=\d+\s*小時內(?:不要|不可|不得|勿|別))/gu)
   if (/\bbefore taking (?:this |the )?medicine\b/i.test(source)) separate(/([\p{Script=Han}\d])[，,\s]*(?=(?:服用(?:此|本|這種|這個)?藥(?:物)?前|用藥前))/gu)
