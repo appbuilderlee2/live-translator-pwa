@@ -77,7 +77,9 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
   const metadata = (s, start, end, saved = false) => {
     const final = s.finals.find(range => end <= range.end)
     const uncertain = !final || !!final.saved
-    return { ...speechEvidence(s, start, end), confidence: final?.confidence, numericAlternatives: final?.alternatives || [], unconfirmed: !!s.terminal && uncertain, provisional: !s.terminal && uncertain || !s.flushed && end === words(s.text).length && unfinishedSpeech(slice(s.text, words(s.text), start, end)), forced: !s.terminal && (!!final?.saved || !final && saved), numericWarnings: [...new Set(s.risks.filter(r => r.start < end && r.end > start).map(r => r.reason))] }
+    const finalStart = s.finals[s.finals.indexOf(final) - 1]?.end || 0
+    const recognitionBoundary = { session: s.id, range: [start, end], finalRange: uncertain ? undefined : [finalStart, final.end] }
+    return { ...speechEvidence(s, start, end), recognitionBoundary, confidence: final?.confidence, numericAlternatives: final?.alternatives || [], unconfirmed: !!s.terminal && uncertain, provisional: !s.terminal && uncertain || !s.flushed && end === words(s.text).length && unfinishedSpeech(slice(s.text, words(s.text), start, end)), forced: !s.terminal && (!!final?.saved || !final && saved), numericWarnings: [...new Set(s.risks.filter(r => r.start < end && r.end > start).map(r => r.reason))] }
   }
   const publishedWords = s => s.parts.reduce((sum, p) => sum + p.count, 0)
   const notifySettlement = () => settling([...endedSessions, current].some(s => s.terminal && (s.parts.some(part => !part.ignored && !part.settled) || words(s.text).length > publishedWords(s))))
