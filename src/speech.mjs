@@ -65,7 +65,7 @@ function missing(values, expected) {
 
 export function createSpeechController(rec, { commit, revise = (_id, _text, _meta) => {}, preview, state, message }) {
   rec.continuous = true; rec.interimResults = true; rec.lang = 'en-US'; rec.maxAlternatives = 3
-  let wanted = false; let running = false; let current = session(); let closing; let pause
+  let wanted = false; let running = false; let nativeStarted = false; let current = session(); let closing; let pause
   let retryTimer; let failures = 0; let failed = false; let immediateRetry = false
   const timers = new Set()
   const endedSessions = new Set()
@@ -82,7 +82,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
   const publishedWords = s => s.parts.reduce((sum, p) => sum + p.count, 0)
   function settle(s) {
     for (const part of s.parts) {
-      if (part.settled || part.provisional || part.forced || part.settleTimer) continue
+      if (part.ignored || part.settled || part.provisional || part.forced || part.settleTimer) continue
       const text = part.text
       const timer = setTimeout(() => {
         timers.delete(timer); part.settleTimer = undefined
@@ -103,7 +103,8 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
         const count = words(text).length
         const meta = metadata(s, start, start + count, saved)
         start += count
-        s.parts.push({ id: commit(text, { ...meta, settled: false }), text, count, ...meta, settled: false })
+        const ignored = filler(text)
+        s.parts.push({ id: ignored ? undefined : commit(text, { ...meta, settled: false }), text, count, ...meta, ignored, settled: ignored })
       }
     }
     s.committedCharacters = end ? tokens[end - 1].index + tokens[end - 1][0].length : 0
@@ -124,14 +125,20 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
       }
       if (end > offset && end < tokens.length && /^please[,;:]?$/i.test(tokens[end - 1][0])) end--
       if (part.provisional && final && !final.saved) end = phraseBoundary(text, tokens, offset, end, final.end)
+      if (part.ignored && index === s.parts.length - 1) end = tokens.length
+      const original = normalized(part.text)
+      const remaining = next.slice(offset)
+      const preserved = s.terminal && part.settled && !part.ignored && original.slice(0, Math.min(original.length, remaining.length)).every((word, i) => word === remaining[i])
+      if (preserved) end = offset + part.count
       const replacement = slice(text, tokens, offset, end)
       const meta = metadata(s, offset, end, part.forced)
       const extended = final?.saved && normalized(replacement).slice(0, part.count).join() === normalized(part.text).join()
-      const accepted = meta.provisional && !extended ? part.text : replacement
+      const accepted = preserved || meta.provisional && !extended ? part.text : replacement
       const settled = part.settled && sameRecognizedSource(part.text, accepted) && !meta.provisional
       if (part.text !== accepted || part.provisional !== meta.provisional) { clearTimeout(part.settleTimer); timers.delete(part.settleTimer); part.settleTimer = undefined }
-      if ((!meta.provisional && matching < end) || part.text !== accepted || part.provisional !== meta.provisional || part.forced !== meta.forced || part.unconfirmed !== meta.unconfirmed || part.confidence !== meta.confidence || part.settled !== settled || part.numericWarnings?.join() !== meta.numericWarnings.join() || JSON.stringify(part.numericAlternatives) !== JSON.stringify(meta.numericAlternatives)) revise(part.id, accepted, { ...meta, settled })
-      Object.assign(part, { text: accepted, count: words(accepted).length, ...meta, settled })
+      if (part.ignored && !filler(accepted) && accepted) { part.id = commit(accepted, { ...meta, settled: false }); part.ignored = false }
+      else if (!part.ignored && ((!meta.provisional && matching < end) || part.text !== accepted || part.provisional !== meta.provisional || part.forced !== meta.forced || part.unconfirmed !== meta.unconfirmed || part.confidence !== meta.confidence || part.settled !== settled || part.numericWarnings?.join() !== meta.numericWarnings.join() || JSON.stringify(part.numericAlternatives) !== JSON.stringify(meta.numericAlternatives))) revise(part.id, accepted, { ...meta, settled })
+      Object.assign(part, { text: accepted, count: words(accepted).length, ...meta, settled: part.ignored || settled })
       offset += part.count
     }
     s.parts = s.parts.filter(p => p.count)
@@ -156,7 +163,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
       const last = s.parts.at(-1)
       const offset = start - (last?.count || 0)
       const extended = slice(s.text, tokens, offset, end)
-      if (last?.provisional && !last.forced && sentences(extended).length === 1 && words(extended).length <= 40) {
+      if (last?.provisional && !last.ignored && !last.forced && sentences(extended).length === 1 && words(extended).length <= 40) {
         const meta = metadata(s, offset, end)
         revise(last.id, extended, meta)
         Object.assign(last, { text: extended, count: words(extended).length, ...meta })
@@ -173,7 +180,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
     if (s.terminal) {
       let offset = 0
       for (const part of s.parts) {
-        if (!part.settled) {
+        if (!part.ignored && !part.settled) {
           clearTimeout(part.settleTimer); timers.delete(part.settleTimer); part.settleTimer = undefined
           part.settled = true
           revise(part.id, part.text, { ...metadata(s, offset, offset + part.count), settled: true })
@@ -181,7 +188,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
         offset += part.count
       }
     }
-    for (const part of s.parts) if (part.provisional && !part.forced) {
+    for (const part of s.parts) if (!part.ignored && part.provisional && !part.forced) {
       part.forced = true; revise(part.id, part.text, { confidence: undefined, provisional: true, forced: true })
     }
     settle(s)
@@ -192,8 +199,8 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
     later(() => { for (const s of sessions) flush(s) })
   }
   function previewCurrent() { preview(current.text.slice(current.committedCharacters).trim()) }
-  rec.onstart = () => { clearTimeout(retryTimer); retryTimer = undefined }
-  rec.onaudiostart = () => { failed = false; clearTimeout(retryTimer); retryTimer = undefined; if (wanted && !current.terminal) { state('listening'); message('') } }
+  rec.onstart = () => { nativeStarted = true; clearTimeout(retryTimer); retryTimer = undefined }
+  rec.onaudiostart = () => { nativeStarted = true; failed = false; clearTimeout(retryTimer); retryTimer = undefined; if (wanted && !current.terminal) { state('listening'); message('') } }
   rec.onresult = event => {
     message('')
     const incoming = Array.from(event.results, (result, index) => ({ index, text: result[0].transcript.trim(), final: result.isFinal, confidence: result[0].confidence, alternatives: Array.from(result, a => a.transcript) })).filter(r => r.text)
@@ -202,13 +209,10 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
     if (wanted && !current.terminal) state('listening')
     const candidate = normalized(incoming.map(r => r.text).join(' ')); const old = normalized(closing?.text || '')
     const overlap = candidate.slice(0, 10).filter(word => old.slice(0, 10).includes(word)).length
-    const matchesClosing = closing?.awaitingFinal && incoming[0].final && ((!closing.flushed && !current.text) || overlap >= Math.min(candidate.length, old.length, 10) * .6)
-    const late = !wanted && incoming[0].final ? [...endedSessions].reverse().find(s => {
-      const previous = normalized(s.text)
-      return s.awaitingFinal && previous.length && candidate.slice(0, 10).filter(word => previous.slice(0, 10).includes(word)).length >= Math.min(candidate.length, previous.length, 10) * .6
-    }) : undefined
+    const matchesClosing = !nativeStarted && !current.text && !current.terminal && closing?.awaitingFinal && incoming[0].final && ((!closing.flushed && !current.text) || overlap >= Math.min(candidate.length, old.length, 10) * .6)
+    const late = !running && !current.text && incoming[0].final ? closing : undefined
     const target = matchesClosing ? closing : late || current
-    let rows = trackRows(target, incoming).filter(row => !row.saved || !filler(row.text))
+    let rows = trackRows(target, incoming).filter(row => !filler(row.text))
     if (filler(rows.filter(row => !row.final).map(row => row.text).join(' '))) rows = rows.filter(row => row.final)
     const text = rows.map(r => r.text).join(' ')
     let count = 0
@@ -271,7 +275,8 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
       if (numericValues(slice(ended.text, words(ended.text), start, end)).length) { risk(ended, start, end, 'boundary'); reconcile(ended, ended.text, ended.finals) }
     }
     if (closing && closing !== ended) flush(closing)
-    closing = ended.terminal && wanted ? undefined : ended
+    if (ended.terminal && wanted) closing = undefined
+    else if (ended.text || nativeStarted) closing = ended
     endedSessions.add(ended)
     ended.timer = later(() => flush(ended))
     current = session(); current.afterRestart = ended.awaitingFinal; preview('')
@@ -281,6 +286,7 @@ export function createSpeechController(rec, { commit, revise = (_id, _text, _met
     else { state('idle'); endListening() }
   }
   function startRecognition() {
+    nativeStarted = false
     try { state(failed ? 'retrying' : 'requesting'); running = true; rec.start() } catch { running = false; failed = true; message('無法啟動麥克風，正在重試。請檢查權限或按「重試麥克風」。Could not start microphone. Retrying; check permissions or Retry mic.'); scheduleRetry() }
   }
   function scheduleRetry() {
